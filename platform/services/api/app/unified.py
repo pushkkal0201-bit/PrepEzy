@@ -121,7 +121,7 @@ class UnifiedEvidence:
                 "source": record["source"], "created_at": record["created_at"],
                 "details": {"tests_passed": record["tests_passed"], "tests_total": record["tests_total"]},
             })
-        events.sort(key=lambda e: (e["created_at"], e["id"]), reverse=True)
+        events.sort(key=lambda e: (e["created_at"], int(e["id"].split(":")[-1])), reverse=True)
         return {
             "events": events, "event_count": len(events),
             "sources": {

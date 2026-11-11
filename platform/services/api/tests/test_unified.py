@@ -206,3 +206,13 @@ def test_local_auralis_http_contract_passes_only_verified_runner_output():
     assert r.status_code == 200, r.text
     assert r.json()["result"]["source"] == "restricted_ast_test_runner"
     assert api.get("/api/local/skillgraph").json()["sources"]["auralis_restricted_code"] == 1
+
+
+def test_many_retries_keep_original_first_attempt_not_lexicographic_order():
+    local, unified = make()
+    local.grade_viva("dbms-atomicity", "a")
+    for _ in range(12):
+        local.grade_viva("dbms-atomicity", "b")
+    state = next(s for s in unified.skillgraph()["skills"] if s["id"] == "dbms")
+    assert state["distinct_assessments"] == 1
+    assert state["first_try_correct_unassisted"] == 0
