@@ -96,3 +96,11 @@ A separate set of fixed design-defense questions is checked by server-side answe
 UnifiedEvidence now adds two **distinct** dimensions: project-build (first independent Docker milestone attempt) and project-defense (first checked multiple-choice decision). Retrying cannot overwrite first-attempt evidence. Local progression and career-role recommendations are transparent heuristics. Build Your Own X supplies curated external links only and is not copied or treated as a project execution API.
 
 No authentication and no secure hosted multi-user sandbox yet. API must remain on 127.0.0.1; future deployment requires user isolation, quotas, stronger code isolation and independently reviewed student-submitted content.
+
+## Stage 12 — Commit-pinned GitHub evidence boundary
+
+GitHubProjectReview uses public, fixed-host GitHub REST GET requests only. A verified default-branch commit and tree SHA define a snapshot. Small UTF-8 files are retrieved by immutable blob SHA; the actual data are rehashed using Git blob SHA-1 before source markers can be recorded. Up to fourteen source files are inspected; truncated trees or empty/invalid samples are not represented as complete inspections. The database stores bounded excerpt/citation metadata and answers, not full source files. Credentials-like excerpt lines are redacted. External repository text is never executed as a prompt or treated as instructions.
+
+Technical-defense questions use server-authored prompts selected by actual static source pattern; written explanations remain ungraded. The opt-in one-file smoke check runs only a pinned .py/.js/.java source with up to three learner-declared stdin/expected-stdout pairs inside the shared network-disabled DockerRunner, never arbitrary test commands. These results cannot confer SkillGraph grades; GET /api/local/skillgraph only adds an unscored github_review_context. All GitHub review data are removed by the full local reset.
+
+No authentication or private GitHub repo integration; bind API to 127.0.0.1 only. Standalone Docker does not provide guaranteed hostile-code security. Rate limits and partial sampling are transparently reported.

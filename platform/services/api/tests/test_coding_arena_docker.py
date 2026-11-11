@@ -167,3 +167,56 @@ def test_real_stage11_project_defense_tracks_checked_choice_not_written_rational
     report = unified.skillgraph()
     assert report["sources"]["project_defense_choices"] == 1
     assert report["sources"]["project_milestones"] == 1
+
+
+@pytest.mark.parametrize("language,source", [
+    ("python", 'print("READY")\n'),
+    ("javascript", 'console.log("READY");\n'),
+    ("java", 'public class Main { public static void main(String[] args) { System.out.println("READY"); } }\n'),
+])
+def test_real_stage12_pinned_github_blob_approved_smoke_in_docker(language, source):
+    """Actual Docker execution, with a fake GitHub REST transport for stable CI."""
+    import asyncio
+    import base64
+    import hashlib
+    import httpx
+    from app.local_lab import LocalLab
+    from app.repo_review import GitHubProjectReview
+
+    payload = source.encode("utf-8")
+    blob = hashlib.sha1(b"blob " + str(len(payload)).encode() + b"\0" + payload).hexdigest()
+    commit, tree = "a" * 40, "b" * 40
+    path = {"python": "main.py", "javascript": "main.js", "java": "Main.java"}[language]
+
+    def fake_github(request):
+        assert request.method == "GET"
+        assert request.url.host == "api.github.com"
+        route = request.url.path
+        if route == "/repos/sample-user/standalone-hello":
+            return httpx.Response(200, json={"private": False, "default_branch": "main"})
+        if route.endswith("/commits/main"):
+            return httpx.Response(200, json={"sha": commit, "commit": {"tree": {"sha": tree}}})
+        if route.endswith("/git/trees/" + tree):
+            return httpx.Response(200, json={"truncated": False, "tree": [
+                {"path": path, "type": "blob", "size": len(payload), "sha": blob}
+            ]})
+        if route.endswith("/git/blobs/" + blob):
+            return httpx.Response(200, json={
+                "encoding": "base64", "content": base64.b64encode(payload).decode()
+            })
+        return httpx.Response(404, json={"detail": "not found"})
+
+    lab = LocalLab()
+    reviewer = GitHubProjectReview(
+        lab.db, lab.lock, transport=httpx.MockTransport(fake_github), runner=DockerRunner()
+    )
+    snapshot = asyncio.run(reviewer.inspect("https://github.com/sample-user/standalone-hello"))
+    assert snapshot["commit_sha"] == commit
+    assert reviewer.runner.available(language), "CI must pre-pull language images"
+    result = asyncio.run(reviewer.smoke_check(
+        snapshot["id"], path, language, [{"stdin": "", "expected_stdout": "READY"}], True
+    ))
+    assert result["verdict"] == "matched-user-expected-output", result
+    assert result["tests_passed"] == result["tests_total"] == 1
+    assert result["graded_skillgraph"] is False
+    assert result["expectation_origin"] == "learner-supplied-not-independently-verified"
