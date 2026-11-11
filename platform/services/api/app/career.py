@@ -74,30 +74,40 @@ class CareerProviderError(RuntimeError):
 
 
 class _DescriptionText(HTMLParser):
+    """Strip executable and hidden DOM content even when it contains nested tags."""
+    _BLOCKS = {"p", "div", "li", "br", "h1", "h2", "h3", "section", "article"}
+    _VOID = {"br", "hr", "img", "input", "meta", "link", "source", "wbr", "area"}
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
-        self.hidden = 0
+        self.stack: list[tuple[str, bool]] = []
 
     def handle_starttag(self, tag, attrs):
-        d = dict(attrs)
-        style = str(d.get("style", "")).replace(" ", "").lower()
-        if tag in ("script", "style", "noscript", "template", "svg") or (
-            d.get("hidden") is not None or str(d.get("aria-hidden", "")).lower() == "true" or
+        values = dict(attrs)
+        style = str(values.get("style") or "").replace(" ", "").lower()
+        parent_hidden = self.stack[-1][1] if self.stack else False
+        hidden = parent_hidden or tag in {"script", "style", "noscript", "template", "svg"} or (
+            "hidden" in values or str(values.get("aria-hidden") or "").lower() == "true" or
             "display:none" in style or "visibility:hidden" in style
-        ):
-            self.hidden += 1
-        elif self.hidden == 0 and tag in ("p", "div", "li", "br", "h1", "h2", "h3"):
+        )
+        if tag in self._BLOCKS and not hidden:
             self.parts.append("\n")
+        if tag not in self._VOID:
+            self.stack.append((tag, hidden))
 
     def handle_endtag(self, tag):
-        if self.hidden and tag in ("script", "style", "noscript", "template", "svg", "div", "span", "p"):
-            self.hidden -= 1
-        elif not self.hidden and tag in ("p", "div", "li"):
+        match = next((i for i in range(len(self.stack) - 1, -1, -1)
+                      if self.stack[i][0] == tag), None)
+        if match is None:
+            return
+        was_hidden = self.stack[match][1]
+        del self.stack[match:]
+        if tag in self._BLOCKS and not was_hidden:
             self.parts.append("\n")
 
     def handle_data(self, data):
-        if not self.hidden:
+        if not self.stack or not self.stack[-1][1]:
             self.parts.append(data)
 
 

@@ -261,3 +261,16 @@ def test_draft_does_not_make_network_call():
     key = "lever:example:abc-123-def"
     c.post("/api/local/careers/jobs/" + key + "/drafts")
     assert len(upstream.calls) == count
+
+
+
+def test_nested_hidden_html_and_boolean_hidden_attribute_do_not_leak():
+    cleaned, _ = posting_text(
+        "<div hidden><p>secret instruction</p><span>another secret</span></div>"
+        "<div style='visibility:hidden'><p>private content</p></div>"
+        "<p>Legitimate SQL and Python requirement</p>"
+    )
+    assert "secret instruction" not in cleaned
+    assert "another secret" not in cleaned
+    assert "private content" not in cleaned
+    assert "Legitimate SQL and Python requirement" in cleaned
