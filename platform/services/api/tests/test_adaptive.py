@@ -73,7 +73,9 @@ def test_api_rejects_non_demo_account_and_invalid_planning_minutes():
 def test_high_accuracy_still_requests_more_evidence_from_small_sample():
     engine = DemoEngine()
     engine.submit("demo-backend", "dsa-1", "b")
-    activity = next(x for x in engine.roadmap("demo-backend")["activities"] if x["skill"] == "dsa")
+    snapshot = engine.snapshot("demo-backend")
+    snapshot["competencies"] = [c for c in snapshot["competencies"] if c["id"] == "dsa"]
+    activity = make_roadmap(snapshot)["activities"][0]
     assert activity["type"] == "reinforcement"
 
 
