@@ -87,6 +87,27 @@ Only the first transfer check per distinct pattern contributes a DSA **concept-r
 
 All data is synthetic and local; authentication remains deferred.
 
+## Stage 5: Actual SQL execution and local Core CS assessment
+
+This stage adds a **usable single-device workspace** rather than another synthetic learner selector. Choose a role (Backend, Data Analyst, ML or Full-stack), preferred language and daily study time. The setting persists in a local SQLite file (default \`prepezy_local.sqlite\` in the backend working directory).
+
+- Five SQL challenges: JOIN, GROUP BY/HAVING, anti-join, correlated subquery and window ranking.
+- User-entered **read-only SQL is executed in isolated in-memory SQLite fixture databases**, with a SQLite authorizer, permitted built-in functions, progress-handler time limit and row/output limits. Expected results are computed by running reference queries for **two different datasets**. No OS commands, external databases, network access or arbitrary Python scripts are executed.
+- Twelve original DBMS, OS, CN and OOP questions graded on the server.
+- Evidence-based personal study roadmap that uses target-role relevance, distinct challenges attempted and **first-try** correctness (a retry cannot inflate independent evidence).
+- Persisted local attempts with SHA-256 hashes of submitted SQL; private query text is not saved in history. Read-only evidence endpoint and delete-local-history action.
+- Local-network middleware denies remote peers and untrusted browser origins. **This is not real account authentication and cannot protect against malicious local programs.**
+
+Run the API on \`127.0.0.1\` only. To select a persistent local database explicitly in Windows CMD before starting FastAPI:
+
+\`\`\`bat
+set PREPEZY_LOCAL_DB=D:\Projects\prepezy_local.sqlite
+\`\`\`
+
+**Local endpoints:** \`GET /api/local/profile\`, \`PUT /api/local/profile\`, \`GET /api/local/overview\`, \`GET /api/local/sql/challenges\`, \`POST /api/local/sql/attempts\`, \`GET /api/local/viva/questions\`, \`POST /api/local/viva/attempts\`, \`GET /api/local/evidence\`, \`DELETE /api/local/data\`.
+
+These are genuinely executed/graded exercises over *fictional fixture records*. They are not a claim that the entire Cracked Core Viva, full remote Auralis, Serviette, JobSearch or all ten repo feature sets have been integrated. The older Auralis and Cracked experiment modules still retain clearly labeled synthetic profiles.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.
@@ -101,7 +122,7 @@ Auralis is **optionally** connected to the actual local scripted-demo service wh
 
 ## Production warning
 
-**This is a local prototype, not a multi-user release.** Its two learner identifiers are public synthetic names, not authenticated users. Do not deploy publicly or add real resumes, interviews, personally identifiable information or API keys. The demo API refuses startup unless `PREPEZY_ENV=development` (or unset). Its practice checks are not a hiring-readiness score.
+**This is a single-device local workspace, not a multi-user release.** Its two learner identifiers are public synthetic names, not authenticated users. Do not deploy publicly or add real resumes, interviews, personally identifiable information or API keys. The demo API refuses startup unless `PREPEZY_ENV=development` (or unset). Its practice checks are not a hiring-readiness score.
 
 ## Build roadmap
 

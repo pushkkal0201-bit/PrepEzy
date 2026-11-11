@@ -3,15 +3,34 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import Field
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from .core import DemoEngine
 from .auralis import AuralisClient, AuralisGatewayError, public_session
 from .cracked import public_catalog
+from .local_lab import LocalLab
+
+
+class LocalProfileUpdate(BaseModel):
+    role: Literal["backend", "data", "ml", "fullstack"]
+    language: Literal["Java", "Python", "JavaScript"]
+    daily_minutes: int = Field(ge=15, le=120)
+
+
+class SqlAttempt(BaseModel):
+    challenge_id: str = Field(min_length=1, max_length=30)
+    query: str = Field(min_length=12, max_length=1500)
+
+
+class VivaAttempt(BaseModel):
+    question_id: str = Field(min_length=3, max_length=48)
+    choice_id: str = Field(min_length=1, max_length=4)
 
 
 class CodingAttempt(BaseModel):
@@ -35,7 +54,7 @@ class Attempt(BaseModel):
     choice_id: str
 
 
-def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None) -> FastAPI:
+def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None, local_lab: LocalLab | None = None) -> FastAPI:
     if os.getenv("PREPEZY_ENV", "development") != "development":
         raise RuntimeError("This synthetic demo API is not production-ready")
     instance = engine or DemoEngine(os.getenv("PREPEZY_DEMO_DB", ":memory:"))
@@ -43,8 +62,24 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.4.0")
-    app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.5.0")
+    app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
+    local = local_lab if local_lab is not None else LocalLab(
+        ":memory:" if engine is not None else os.getenv("PREPEZY_LOCAL_DB", "prepezy_local.sqlite")
+    )
+
+    @app.middleware("http")
+    async def local_network_gate(request: Request, call_next):
+        # No authentication: fail closed for remote peers and untrusted browser origins.
+        # This does NOT protect against other local programs or replace real auth.
+        peer = request.client.host if request.client else ""
+        origin = request.headers.get("origin")
+        if peer not in {"127.0.0.1", "::1", "testclient"} or (
+            origin and origin not in {"http://localhost:3000", "http://127.0.0.1:3000"}
+        ):
+            return JSONResponse({"detail": "Local-only development access"}, status_code=403)
+        return await call_next(request)
+
 
     @app.get("/api/health")
     def health():
@@ -93,6 +128,55 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
             return instance.next_question(learner_id)
         except ValueError as error:
             raise HTTPException(404, str(error)) from error
+
+    # A real local-first study workspace, with no sign-in and no synthetic user IDs.
+    # This API is for one trusted local device; never expose it on a public interface.
+    @app.get("/api/local/profile")
+    def local_profile():
+        return local.profile()
+
+    @app.put("/api/local/profile")
+    def local_update_profile(body: LocalProfileUpdate):
+        try:
+            return local.update_profile(body.role, body.language, body.daily_minutes)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/overview")
+    def local_overview():
+        return local.overview()
+
+    @app.get("/api/local/sql/challenges")
+    def local_sql_catalog():
+        return local.sql_catalog()
+
+    @app.post("/api/local/sql/attempts")
+    def local_sql_attempt(body: SqlAttempt):
+        try:
+            return {"result": local.grade_sql(body.challenge_id, body.query),
+                    "overview": local.overview()}
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/viva/questions")
+    def local_viva_catalog():
+        return local.viva_catalog()
+
+    @app.post("/api/local/viva/attempts")
+    def local_viva_attempt(body: VivaAttempt):
+        try:
+            return {"result": local.grade_viva(body.question_id, body.choice_id),
+                    "overview": local.overview()}
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/evidence")
+    def local_evidence():
+        return local.evidence()
+
+    @app.delete("/api/local/data")
+    def local_delete_data():
+        return local.reset()
 
     def local_auralis() -> AuralisClient:
         if auralis is None:
