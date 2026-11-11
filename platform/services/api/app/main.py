@@ -159,7 +159,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     )
     career = career_client if career_client is not None else CareerEngine(local.db, local.lock)
     resumes = resume_client if resume_client is not None else ResumeIntelligence(local.db, local.lock)
-    repo_review = repo_review_client if repo_review_client is not None else GitHubProjectReview(local.db, local.lock, runner=unified.arena.runner)
+    repo_review = repo_review_client if repo_review_client is not None else GitHubProjectReview(local.db, local.lock, runner=unified.arena.runner, gate=unified.arena.capacity)
 
     @app.middleware("http")
     async def local_network_gate(request: Request, call_next):
