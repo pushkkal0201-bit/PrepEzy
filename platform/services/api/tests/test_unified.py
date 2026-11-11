@@ -30,7 +30,7 @@ def make():
 def test_empty_graph_uses_real_evidence_categories_and_marks_unassessed():
     _, graph = make()
     snapshot = graph.skillgraph()
-    assert len(snapshot["skills"]) == 8
+    assert len(snapshot["skills"]) == 10
     assert snapshot["event_count"] == 0
     assert all(skill["status"] == "unassessed" for skill in snapshot["skills"])
     assert snapshot["recommendation"]["skill"] == "sql"
@@ -151,7 +151,7 @@ def test_local_endpoint_unifies_sql_viva_cracked():
     app = create_app(DemoEngine(), local_lab=LocalLab())
     client = TestClient(app)
     base = client.get("/api/local/skillgraph").json()
-    assert len(base["skills"]) == 8
+    assert len(base["skills"]) == 10
     q = client.post("/api/local/sql/attempts", json={"challenge_id": "joins", "query": SQL_TASKS["joins"]["reference"]})
     assert q.status_code == 200 and q.json()["result"]["passed"]
     viva = client.post("/api/local/viva/attempts", json={"question_id": "dbms-atomicity", "choice_id": "b"})

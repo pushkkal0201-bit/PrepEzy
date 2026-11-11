@@ -20,6 +20,7 @@ from .coding_arena import JudgeUnavailable, public_problems
 from .knowledge import NotesFolder, ServietteGateway, ServietteUnavailable, suggest_from_skillgraph
 from .career import CareerEngine
 from .resume import ResumeIntelligence, MAX_BYTES as RESUME_MAX_BYTES
+from .project_lab import PROJECTS
 
 
 class LocalProfileUpdate(BaseModel):
@@ -77,6 +78,21 @@ class ArenaSubmission(BaseModel):
     source: str = Field(min_length=12, max_length=12000)
 
 
+class ProjectMilestoneSubmission(BaseModel):
+    language: Literal["python", "java", "javascript"]
+    code: str = Field(min_length=12, max_length=12000)
+
+
+class ProjectDefenseSubmission(BaseModel):
+    choice_id: Literal["a", "b", "c"]
+    rationale: str = Field(min_length=20, max_length=1200)
+
+
+class ProjectArtifactSubmission(BaseModel):
+    repo_url: str = Field(min_length=20, max_length=220)
+    notes: str = Field(default="", max_length=1800)
+
+
 class CodingAttempt(BaseModel):
     challenge_id: str = Field(min_length=1, max_length=48)
     code: str = Field(min_length=8, max_length=2500)
@@ -106,7 +122,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.10.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.11.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
     local = local_lab if local_lab is not None else LocalLab(
         ":memory:" if engine is not None else os.getenv("PREPEZY_LOCAL_DB", "prepezy_local.sqlite")
@@ -187,6 +203,55 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     # JobSearch-inspired real published-board discovery and review-only drafts.
     # All ATS requests use fixed public read-only Greenhouse/Lever hosts.
     # Real document extraction and role review. No outbound resume uploads.
+    # Curated, educational Build Your Own X links; original Docker-checked milestones.
+    @app.get("/api/local/projects/catalog")
+    def project_catalog():
+        return unified.projects.catalog(local.profile()["role"])
+
+    @app.get("/api/local/projects/{project_id}")
+    def project_detail(project_id: str):
+        try:
+            return unified.projects.state(project_id)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.post("/api/local/projects/{project_id}/milestones/{milestone_id}/submit")
+    def project_submit(project_id: str, milestone_id: str, body: ProjectMilestoneSubmission):
+        try:
+            result = unified.projects.submit_milestone(
+                project_id, milestone_id, body.language, body.code
+            )
+            return {"result": result, "project": unified.projects.state(project_id),
+                    "skillgraph": unified.skillgraph()}
+        except JudgeUnavailable as error:
+            raise HTTPException(503, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/local/projects/{project_id}/defense/{question_id}/submit")
+    def project_defense(project_id: str, question_id: str, body: ProjectDefenseSubmission):
+        try:
+            result = unified.projects.defend(
+                project_id, question_id, body.choice_id, body.rationale
+            )
+            return {"result": result, "project": unified.projects.state(project_id),
+                    "skillgraph": unified.skillgraph()}
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.put("/api/local/projects/{project_id}/artifact")
+    def project_artifact(project_id: str, body: ProjectArtifactSubmission):
+        try:
+            return unified.projects.save_artifact(project_id, body.repo_url, body.notes)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/projects/evidence/all")
+    def project_evidence_all():
+        return {"milestones": unified.projects.milestone_evidence(),
+                "defense": unified.projects.defense_evidence(),
+                "notice": "Only Docker test verdicts and checked defense choices are graded; rationales and repository links remain unverified."}
+
     @app.get("/api/local/resume/status")
     def resume_status():
         return resumes.status()
@@ -509,7 +574,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
         unified.clear()
         career.delete_local_career_data()
         resumes.clear()
-        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena", "career_data", "resume_data"]}
+        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena", "career_data", "resume_data", "project_lab"]}
 
     def local_auralis() -> AuralisClient:
         if auralis is None:
