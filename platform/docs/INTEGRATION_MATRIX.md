@@ -60,3 +60,9 @@ A single-device pipeline now aggregates **real** SQL execution, checked Core CS 
 ## Stage 8 — Serviette Knowledge Hub
 
 Implemented in the feature branch: actual Serviette REST v1 integration, local watched-folder Markdown/text note management, source-cited retrieval, optional upstream generated answers, explicit retrieval-only fallback, index catalog and status, SkillGraph-driven query suggestions, and HTTP contract tests. Real indexer readiness depends on separately running Serviette with a Pathway license and appropriate embedder. An upstream live indexer test is not part of this CI stage. No public user isolation, PDF uploads through the PrepEzy editor, or confidential-document tenancy is claimed.
+
+## Stage 9 — JobSearch integration status
+
+Implemented: official public Greenhouse and Lever GET adapters, user-selected employer-board setup, timestamped local job snapshots, deterministic deduplication and technology extraction, role and SkillGraph evidence comparison, self-reported-facts-only application drafts, manual outcome tracking, and a student-facing Next.js Career Intelligence workflow. No automatic job applications or outreach.
+
+Still pending: the original JobSearch Claude Code agent skills, Danish and India-specific job portal tools, CV PDF and LaTeX review, Gmail/Notion sync, salary research, dynamic LLM drafting, wider employer discovery, alerting, and secure public multi-user storage.

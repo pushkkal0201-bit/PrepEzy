@@ -70,3 +70,11 @@ Timed sessions are enforced by backend timestamps. Outputs are compared against 
 NotesFolder writes safe Markdown/plain-text documents to PREPEZY_KNOWLEDGE_DIR, watched separately by an external Serviette indexer. ServietteGateway calls real versioned REST endpoints under /api/v1 (health, stats, documents, retrieve, rag); the upstream URL must resolve to local loopback. If upstream /rag returns 501, the gateway retrieves real passages instead and does not invent generated text. Metadata and citations come exclusively from indexed retrieval results. Saving a note and indexing it are separate asynchronous operations. The PrepLoop knowledge suggestion follows the verified local SkillGraph without changing skill evidence.
 
 Pathway license and model credentials stay in the separate Serviette runtime. This is a trusted single-device prototype, not secure multi-tenant RAG.
+
+## Stage 9: JobSearch Career Intelligence
+
+CareerEngine shares the same local SQLite connection and RLock with the SkillGraph. A refresh makes explicit, read-only HTTPS GET requests to official Greenhouse and Lever public ATS endpoints. Arbitrary URLs embedded in job descriptions are never fetched by the backend. Returned descriptions are treated as untrusted data and rendered as text only. Jobs are stable provider/token/job-id snapshots; they can become stale and must be verified on the employer page before applying.
+
+Matching is deterministic, role-aware and grounded in assessed SkillGraph first attempts. Unassessed requirements are unknown, not failures, and the system does not calculate invented job-match percentages. Candidate facts are self-reported rather than automatically inferred. Drafts use them only for human review; there is no send/apply endpoint. Status changes are purely manual.
+
+This separately authored integration follows the discover/rank/review/outcome architecture of AI Job Search, MIT copyright 2026 Mads Lorentzen, without executing the original Claude Code agent workflows.

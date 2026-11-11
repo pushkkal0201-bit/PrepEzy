@@ -196,6 +196,33 @@ Stage 8 API tests validate the current upstream Serviette HTTP schema with a moc
 
 No multi-user document permissions, robust prompt-injection security or confidential student-data workflows are included; authentication remains deferred as requested.
 
+## Stage 9 — JobSearch-inspired Career Intelligence
+
+PrepEzy now supports actual public employer-job discovery from Greenhouse and Lever ATS job-board JSON APIs. There are no preloaded fake openings. Enter a real employer's public job-board token, refresh the source, and review the actual returned postings. Greenhouse documentation: https://docs.greenhouse.io/job-board . Lever documentation: https://github.com/lever/postings-api .
+
+The original AI Job Search framework (https://github.com/ai-job-search-dev/ai-job-search, MIT, copyright 2026 Mads Lorentzen) is a Claude Code skill-and-command system, not a turn-key web API. PrepEzy implements its discover, evaluate, draft, review and outcome workflow as original code. It does NOT execute the original JobSearch agent skills, portal scrapers, Gmail integration or LaTeX CV compiler.
+
+### What works
+
+- Up to 12 Greenhouse or Lever sources from employer board tokens. Backend fetches JSON only from the two fixed official public ATS endpoints via HTTPS GET. No applications or outreach are automatically sent.
+- Saved job snapshots include provider, official posting link, timestamp, description and extracted technical requirements. Each provider failure is shown rather than filled with synthetic jobs.
+- Role-aware comparison uses PrepEzy's actual local SkillGraph evidence and distinguishes limited positive assessed evidence, first-attempt practice gaps and requirements with no assessment evidence. No hiring probability, ATS percentage or guaranteed fit.
+- A private on-device profile for self-reported, actual projects and experience. Deterministic draft generation copies only user-supplied facts, avoids invented contact details or achievements, and always requires human review.
+- Manual application status tracking: saved, applied, interviewing, offer, rejected, withdrawn. Recording an outcome NEVER submits an application. Data lives in the local SQLite workspace.
+- Full Next.js Career Intelligence panel and delete-local-career-data action.
+
+### Running Stage 9
+
+No additional Python or Node package is required beyond the previous stage. Start the existing local FastAPI backend at 127.0.0.1:8000 and Next.js at localhost:3000. In the Career Intelligence section, choose an employer's Greenhouse or Lever board, enter its token from its public careers URL, and press Add board then Refresh live job boards. Choose a posting to inspect its employer link and comparison to SkillGraph. Provide your own true experience statements to generate an editable review draft. Manually mark applications and outcomes after you take action outside PrepEzy.
+
+### Security and verification limits
+
+User-provided board tokens are validated and cannot change the HTTP host. Posting HTML is converted into plain text; script/style and some hidden content are filtered, and posting text never becomes LLM instructions. Do not assume this sanitization is complete against every adversarial posting.
+
+CI tests verify real adapter code against mocked official JSON schemas, local database persistence, security boundaries, no-send behavior, and evidence-based explanations. CI does not claim that any employer is hiring today, or that a real external employer board was queried during testing. Live functionality requires a valid public board token and successful upstream requests.
+
+Authentication remains deferred. Use only on a trusted local machine, never publicly deploy, and do not commit personal career data to GitHub.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.
