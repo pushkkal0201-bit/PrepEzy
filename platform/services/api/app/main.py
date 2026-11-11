@@ -21,6 +21,7 @@ from .knowledge import NotesFolder, ServietteGateway, ServietteUnavailable, sugg
 from .career import CareerEngine
 from .resume import ResumeIntelligence, MAX_BYTES as RESUME_MAX_BYTES
 from .project_lab import PROJECTS
+from .repo_review import GitHubProjectReview, GitHubReviewUnavailable
 
 
 class LocalProfileUpdate(BaseModel):
@@ -93,6 +94,27 @@ class ProjectArtifactSubmission(BaseModel):
     notes: str = Field(default="", max_length=1800)
 
 
+class RepositoryInspectRequest(BaseModel):
+    repo_url: str = Field(min_length=24, max_length=250)
+
+
+class RepositoryDefenseRequest(BaseModel):
+    finding_id: str = Field(min_length=20, max_length=20)
+    response: str = Field(min_length=30, max_length=2000)
+
+
+class RepositorySmokeCase(BaseModel):
+    stdin: str = Field(max_length=2000)
+    expected_stdout: str = Field(max_length=2000)
+
+
+class RepositorySmokeRequest(BaseModel):
+    file_path: str = Field(min_length=3, max_length=240)
+    language: Literal["python", "javascript", "java"]
+    cases: list[RepositorySmokeCase] = Field(min_length=1, max_length=3)
+    approved: bool
+
+
 class CodingAttempt(BaseModel):
     challenge_id: str = Field(min_length=1, max_length=48)
     code: str = Field(min_length=8, max_length=2500)
@@ -114,7 +136,7 @@ class Attempt(BaseModel):
     choice_id: str
 
 
-def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None, local_lab: LocalLab | None = None, knowledge_client: ServietteGateway | None = None, notes_folder: NotesFolder | None = None, career_client: CareerEngine | None = None, resume_client: ResumeIntelligence | None = None) -> FastAPI:
+def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None, local_lab: LocalLab | None = None, knowledge_client: ServietteGateway | None = None, notes_folder: NotesFolder | None = None, career_client: CareerEngine | None = None, resume_client: ResumeIntelligence | None = None, repo_review_client: GitHubProjectReview | None = None) -> FastAPI:
     if os.getenv("PREPEZY_ENV", "development") != "development":
         raise RuntimeError("This synthetic demo API is not production-ready")
     instance = engine or DemoEngine(os.getenv("PREPEZY_DEMO_DB", ":memory:"))
@@ -122,7 +144,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.11.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.12.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
     local = local_lab if local_lab is not None else LocalLab(
         ":memory:" if engine is not None else os.getenv("PREPEZY_LOCAL_DB", "prepezy_local.sqlite")
@@ -137,6 +159,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     )
     career = career_client if career_client is not None else CareerEngine(local.db, local.lock)
     resumes = resume_client if resume_client is not None else ResumeIntelligence(local.db, local.lock)
+    repo_review = repo_review_client if repo_review_client is not None else GitHubProjectReview(local.db, local.lock, runner=unified.arena.runner)
 
     @app.middleware("http")
     async def local_network_gate(request: Request, call_next):
@@ -204,6 +227,60 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     # All ATS requests use fixed public read-only Greenhouse/Lever hosts.
     # Real document extraction and role review. No outbound resume uploads.
     # Curated, educational Build Your Own X links; original Docker-checked milestones.
+    # Public GitHub REST inspection, commit-pinned source evidence and user-
+    # approved single-file Docker smoke checks. No arbitrary clone/test commands.
+    @app.get("/api/local/repositories/history")
+    def repo_review_history():
+        return repo_review.history()
+
+    @app.post("/api/local/repositories/inspect")
+    async def repo_review_inspect(body: RepositoryInspectRequest):
+        try:
+            return await repo_review.inspect(body.repo_url)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        except GitHubReviewUnavailable as error:
+            raise HTTPException(503, str(error)) from error
+
+    @app.get("/api/local/repositories/{snapshot_id}")
+    def repo_review_snapshot(snapshot_id: int):
+        try:
+            return repo_review.snapshot(snapshot_id)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.post("/api/local/repositories/{snapshot_id}/defense")
+    def repo_review_answer(snapshot_id: int, body: RepositoryDefenseRequest):
+        try:
+            return repo_review.answer(snapshot_id, body.finding_id, body.response)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/repositories/{snapshot_id}/evidence")
+    def repo_review_evidence(snapshot_id: int):
+        try:
+            return repo_review.evidence(snapshot_id)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.post("/api/local/repositories/{snapshot_id}/smoke")
+    async def repo_review_smoke(snapshot_id: int, body: RepositorySmokeRequest):
+        try:
+            return await repo_review.smoke_check(
+                snapshot_id, body.file_path, body.language,
+                [case.model_dump() for case in body.cases], body.approved
+            )
+        except JudgeUnavailable as error:
+            raise HTTPException(503, str(error)) from error
+        except GitHubReviewUnavailable as error:
+            raise HTTPException(503, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.delete("/api/local/repositories/data")
+    def repo_review_delete():
+        return repo_review.clear()
+
     @app.get("/api/local/projects/catalog")
     def project_catalog():
         return unified.projects.catalog(local.profile()["role"])
@@ -467,7 +544,9 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
 
     @app.get("/api/local/skillgraph")
     def local_skillgraph():
-        return unified.skillgraph()
+        graph = unified.skillgraph()
+        graph["github_review_context"] = repo_review.context()
+        return graph
 
     @app.get("/api/local/unified-evidence")
     def local_unified_evidence():
@@ -574,7 +653,8 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
         unified.clear()
         career.delete_local_career_data()
         resumes.clear()
-        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena", "career_data", "resume_data", "project_lab"]}
+        repo_review.clear()
+        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena", "career_data", "resume_data", "project_lab", "github_review_context"]}
 
     def local_auralis() -> AuralisClient:
         if auralis is None:
