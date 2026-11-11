@@ -66,3 +66,9 @@ Implemented in the feature branch: actual Serviette REST v1 integration, local w
 Implemented: official public Greenhouse and Lever GET adapters, user-selected employer-board setup, timestamped local job snapshots, deterministic deduplication and technology extraction, role and SkillGraph evidence comparison, self-reported-facts-only application drafts, manual outcome tracking, and a student-facing Next.js Career Intelligence workflow. No automatic job applications or outreach.
 
 Still pending: the original JobSearch Claude Code agent skills, Danish and India-specific job portal tools, CV PDF and LaTeX review, Gmail/Notion sync, salary research, dynamic LLM drafting, wider employer discovery, alerting, and secure public multi-user storage.
+
+## Stage 10 — Resume Intelligence
+
+Implemented: explicit local PDF/DOCX/TXT/MD import, bounded real text extraction, source-located evidence snippets, section and contact-presence inspection, literal skill mention extraction, comparison with stored live ATS jobs, separate verified SkillGraph assessment signals, role-specific conservative preparation suggestions, Next.js Resume Studio, local persistence/delete, and parser/API regression tests.
+
+Not claimed: verified employment or education history, applicant-tracking-system scoring, OCR/scanned PDF parsing, full semantic skill equivalence, layout-preserving resume rewriting, ATS submission, employer review, secure multi-user storage, or production malware-resistant document processing.

@@ -78,3 +78,11 @@ CareerEngine shares the same local SQLite connection and RLock with the SkillGra
 Matching is deterministic, role-aware and grounded in assessed SkillGraph first attempts. Unassessed requirements are unknown, not failures, and the system does not calculate invented job-match percentages. Candidate facts are self-reported rather than automatically inferred. Drafts use them only for human review; there is no send/apply endpoint. Status changes are purely manual.
 
 This separately authored integration follows the discover/rank/review/outcome architecture of AI Job Search, MIT copyright 2026 Mads Lorentzen, without executing the original Claude Code agent workflows.
+
+## Stage 10 — Resume document intelligence
+
+ResumeIntelligence shares the LocalLab SQLite connection and lock. Explicit file import extracts selectable text from PDF (pypdf), DOCX (python-docx), UTF-8 TXT or Markdown; the original binary is discarded. Page/paragraph (document line) provenance is stored alongside extracted source lines and the SHA-256 hash of the uploaded bytes. Document size, number of PDF pages and DOCX expanded size are bounded. The engine does not invoke OCR, host code execution or outbound model services.
+
+Comparison requires an actual snapshot from CareerEngine.get(job_id). Literal resume keyword mentions are reported with verbatim citations; independent code/SQL/Core SkillGraph evidence is reported separately. The role preparation plan prioritizes unmentioned posting requirements for factual review, mentioned-but-unassessed requirements for practice, and existing PrepLoop recommendations. Nothing here changes the independently verified SkillGraph. A local resume deletion and the global local reset remove all stored extracted text.
+
+All candidate claims remain self-reported, and the web app deliberately does not produce an ungrounded ATS score or hiring predictions. This remains local only until identity, privacy, and hostile-document isolation have been independently addressed.

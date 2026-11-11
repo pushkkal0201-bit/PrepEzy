@@ -5,6 +5,7 @@ import PatternCoach from "./PatternCoach";
 import CodingArena from "./CodingArena";
 import KnowledgeHub from "./KnowledgeHub";
 import CareerStudio from "./CareerStudio";
+import ResumeStudio from "./ResumeStudio";
 
 const API = process.env.NEXT_PUBLIC_PREPEZY_API_URL || "http://localhost:8000";
 
@@ -128,6 +129,7 @@ export default function UnifiedProgress({ refresh, onEvidence }: { refresh: numb
     <CodingArena onEvidence={onEvidence}/>
     <KnowledgeHub refresh={refresh}/>
     <CareerStudio refresh={refresh}/>
+    <ResumeStudio refresh={refresh}/>
     <section className="panel unified-auralis">
       <p className="eyebrow">AURALIS · REAL RESTRICTED CODE CHECKS</p>
       <h3>Python practice with executed test cases</h3>
