@@ -42,7 +42,7 @@ def test_real_upstream_auralis_interview_start_answer_finish():
     assert catalog.status_code == 200 and catalog.json()["challenges"]
     graded = client.post("/api/demo/learners/demo-backend/code", json={
         "challenge_id": "sum_numbers",
-        "code": "def solve(nums):\\n    return sum(nums)",
+        "code": "def solve(nums):\n    return sum(nums)",
     })
     assert graded.status_code == 200, graded.text
     result = graded.json()["result"]

@@ -42,7 +42,7 @@ def make_transport(calls):
         if p == "/api/practical/catalog":
             return httpx.Response(200, json={
                 "execution_policy": "Restricted AST expression interpretation; no arbitrary Python execution",
-                "challenges": [{"id": "sum_numbers", "title": "Sum a list", "description": "Return total", "starter": "def solve(nums):\\n    return 0", "hint": "Use sum."}],
+                "challenges": [{"id": "sum_numbers", "title": "Sum a list", "description": "Return total", "starter": "def solve(nums):\n    return 0", "hint": "Use sum."}],
             })
         if p == "/api/practical/code":
             return httpx.Response(200, json={
@@ -137,7 +137,7 @@ def test_restricted_ast_grades_update_skillgraph_without_retry_inflation():
     assert catalog.status_code == 200
     assert catalog.json()["challenges"][0]["id"] == "sum_numbers"
     before = client.get("/api/demo/learners/demo-backend").json()
-    payload = {"challenge_id": "sum_numbers", "code": "def solve(nums):\\n    return sum(nums)"}
+    payload = {"challenge_id": "sum_numbers", "code": "def solve(nums):\n    return sum(nums)"}
     response = client.post("/api/demo/learners/demo-backend/code", json=payload)
     assert response.status_code == 200, response.text
     assert response.json()["result"]["source"] == "restricted_ast_test_runner"
