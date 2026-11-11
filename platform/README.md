@@ -108,6 +108,33 @@ set PREPEZY_LOCAL_DB=D:\Projects\prepezy_local.sqlite
 
 These are genuinely executed/graded exercises over *fictional fixture records*. They are not a claim that the entire Cracked Core Viva, full remote Auralis, Serviette, JobSearch or all ten repo feature sets have been integrated. The older Auralis and Cracked experiment modules still retain clearly labeled synthetic profiles.
 
+## Stage 6 — Unified, verified, local-first SkillGraph
+
+PrepEzy now connects **four genuinely checked assessment sources** into the same single-device evidence pipeline:
+
+1. Five SQL practicals: independently executed queries against two fixture datasets.
+2. Twelve Core CS Viva questions: server-checked original answer keys.
+3. Four Cracked-inspired guided DSA patterns: only the **first transfer attempt** per pattern is an independent concept-recognition observation; hints and retries remain visible.
+4. Optional Auralis restricted Python practice: only validated \`restricted_ast_test_runner\` results can add code evidence.
+
+The \`UnifiedEvidence\` service shares the same persistent \`PREPEZY_LOCAL_DB\` file as the local SQL/Core assessments and the local Pattern Coach, so one device has **one study record without login**. The Next.js workspace displays evidence counts, seven skill dimensions, per-source provenance, coverage and a goal-aware PrepLoop roadmap. Practice from the local Pattern Coach or Auralis coding panel updates this same graph after each server-checked result. The previous synthetic learner exercises remain isolated and are not silently imported.
+
+Routes:
+- \`GET /api/local/skillgraph\` — seven skills and a transparent adaptive roadmap.
+- \`GET /api/local/unified-evidence\` — source-attributed evidence events.
+- \`GET /api/local/cracked/patterns\`, \`GET /api/local/cracked/patterns/{pattern_id}\`, and \`POST .../hint\`, \`POST .../answers\` — guided pattern practice in the **real local** workspace.
+- \`GET /api/local/auralis/challenges\`, \`POST /api/local/auralis/code\`, \`GET /api/local/auralis/evidence\` — optional actual Auralis restricted coding evaluations.
+- \`DELETE /api/local/data\` — clears SQL, Core CS, local Cracked attempts/hints and Auralis coding records, and resets preferences.
+
+Evidence sources are deliberately **not** averaged into a fake global proficiency score. First unassisted attempts and missing evidence inform explainable recommendations. Scripted Auralis interviews remain **unscored** and do not invent skill measurements.
+
+### Limitations
+
+- No authentication or public multi-user deployment. Keep FastAPI bound to \`127.0.0.1\` and avoid storing personal student data.
+- Cracked's full CLI/agent workflows, unrestricted programming judge and timed OA platform are **not** integrated. The local Pattern Coach is a PrepEzy implementation of Cracked's learning method.
+- Auralis code evaluation is real only when the separate local Auralis service is running and advertises its restricted runner. Scripted interviews remain separate and unscored.
+- Serviette RAG and JobSearch career services, the Adaptive Build Lab, Skill Studio, and development-only tooling are future milestones.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.

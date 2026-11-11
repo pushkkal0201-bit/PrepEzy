@@ -14,7 +14,8 @@ type AnswerResponse = {
   result: { correct: boolean; feedback: string; hint_used: boolean; pattern: PatternState };
 };
 
-export default function PatternCoach({ learner, onEvidence }: { learner: string; onEvidence: () => void }) {
+export default function PatternCoach({ learner, onEvidence, local = false }: { learner: string; onEvidence: () => void; local?: boolean }) {
+  const route = local ? "/api/local/cracked" : "/api/demo/learners/" + learner + "/cracked";
   const [catalog, setCatalog] = useState<PatternMeta[]>([]);
   const [selected, setSelected] = useState("two-pointers");
   const [session, setSession] = useState<PatternState | null>(null);
@@ -26,17 +27,17 @@ export default function PatternCoach({ learner, onEvidence }: { learner: string;
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
-    fetch(API + "/api/demo/cracked/patterns")
+    fetch(API + (local ? "/api/local/cracked/patterns" : "/api/demo/cracked/patterns"))
       .then(r => { if (!r.ok) throw Error("Pattern catalog unavailable"); return r.json(); })
       .then(data => setCatalog(data.patterns ?? []))
       .catch(e => setError(String(e)));
-  }, []);
+  }, [local]);
 
   const reload = useCallback(async () => {
-    const res = await fetch(API + "/api/demo/learners/" + learner + "/cracked/patterns/" + selected);
+    const res = await fetch(API + route + "/patterns/" + selected);
     if (!res.ok) throw Error("Could not load guided practice");
     setSession(await res.json());
-  }, [learner, selected]);
+  }, [route, selected]);
 
   useEffect(() => {
     let active = true;
@@ -49,7 +50,7 @@ export default function PatternCoach({ learner, onEvidence }: { learner: string;
     if (!session?.step) return;
     setBusy(true); setError("");
     try {
-      const res = await fetch(API + "/api/demo/learners/" + learner + "/cracked/patterns/" + selected + "/hint", { method: "POST" });
+      const res = await fetch(API + route + "/patterns/" + selected + "/hint", { method: "POST" });
       if (!res.ok) throw Error("Could not retrieve guided hint");
       const data = await res.json();
       setHint(data.hint);
@@ -61,7 +62,7 @@ export default function PatternCoach({ learner, onEvidence }: { learner: string;
     if (!session?.step || !choice) return;
     setBusy(true); setError("");
     try {
-      const res = await fetch(API + "/api/demo/learners/" + learner + "/cracked/patterns/" + selected + "/answers", {
+      const res = await fetch(API + route + "/patterns/" + selected + "/answers", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ step_id: session.step.id, choice_id: choice }),
       });
@@ -76,9 +77,9 @@ export default function PatternCoach({ learner, onEvidence }: { learner: string;
   }
 
   return <section className="panel coach-panel">
-    <p className="eyebrow">CRACKED PATTERN COACH · PREPEZY CURATED ADAPTATION</p>
+    <p className="eyebrow">{local ? "LOCAL EVIDENCE · " : "SYNTHETIC DEMO · "}CRACKED PATTERN COACH</p>
     <h2>Learn the pattern, not the answer</h2>
-    <p className="sub">Three guided checkpoints: establish a brute-force baseline, spot the wasted work and transfer the insight. Verified multiple-choice evidence updates your DSA SkillGraph. No arbitrary code is executed.</p>
+    <p className="sub">Three guided checkpoints: establish a brute-force baseline, spot the wasted work and transfer the insight. Server-graded concept checks update {local ? "your local DSA evidence graph" : "the synthetic demo SkillGraph"}. No student code is executed.</p>
     <label htmlFor="pattern-topic">Choose DSA pattern</label>
     <select id="pattern-topic" value={selected} onChange={e => setSelected(e.target.value)}>
       {catalog.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
