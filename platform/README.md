@@ -10,7 +10,7 @@ This is the first **implemented** student-facing foundation, developed in `platf
 - Optional local SQLite persistence of demo events; without a DB path, attempts reset on API restart.
 - Transparent prerequisite graph, per-learner evidence passport, suggested next question, and bounded adaptive practice roadmap.
 - Read-only discovery of existing Cracked skill files. This is **not** executing Cracked, Auralis, Serviette, or JobSearch.
-- Twenty automated backend tests, including input validation, persistence, different learning goals and separate demo profiles.
+- Automated backend tests cover the adaptive foundation, Auralis adapters, Cracked practice and the new local-first assessment workflows. Check the latest CI results.
 
 ## Run on Windows
 
@@ -89,7 +89,7 @@ All data is synthetic and local; authentication remains deferred.
 
 ## Stage 5: Actual SQL execution and local Core CS assessment
 
-This stage adds a **usable single-device workspace** rather than another synthetic learner selector. Choose a role (Backend, Data Analyst, ML or Full-stack), preferred language and daily study time. The setting persists in a local SQLite file (default \`prepezy_local.sqlite\` in the backend working directory).
+This stage adds a **usable single-device workspace** rather than another synthetic learner selector. Choose a role (Backend, Data Analyst, ML or Full-stack), preferred language and daily study time. The setting persists in a local SQLite file (default `prepezy_local.sqlite` in the backend working directory).
 
 - Five SQL challenges: JOIN, GROUP BY/HAVING, anti-join, correlated subquery and window ranking.
 - User-entered **read-only SQL is executed in isolated in-memory SQLite fixture databases**, with a SQLite authorizer, permitted built-in functions, progress-handler time limit and row/output limits. Expected results are computed by running reference queries for **two different datasets**. No OS commands, external databases, network access or arbitrary Python scripts are executed.
@@ -98,13 +98,13 @@ This stage adds a **usable single-device workspace** rather than another synthet
 - Persisted local attempts with SHA-256 hashes of submitted SQL; private query text is not saved in history. Read-only evidence endpoint and delete-local-history action.
 - Local-network middleware denies remote peers and untrusted browser origins. **This is not real account authentication and cannot protect against malicious local programs.**
 
-Run the API on \`127.0.0.1\` only. To select a persistent local database explicitly in Windows CMD before starting FastAPI:
+Run the API on `127.0.0.1` only. To select a persistent local database explicitly in Windows CMD before starting FastAPI:
 
-\`\`\`bat
+```bat
 set PREPEZY_LOCAL_DB=D:\Projects\prepezy_local.sqlite
-\`\`\`
+```
 
-**Local endpoints:** \`GET /api/local/profile\`, \`PUT /api/local/profile\`, \`GET /api/local/overview\`, \`GET /api/local/sql/challenges\`, \`POST /api/local/sql/attempts\`, \`GET /api/local/viva/questions\`, \`POST /api/local/viva/attempts\`, \`GET /api/local/evidence\`, \`DELETE /api/local/data\`.
+**Local endpoints:** `GET /api/local/profile`, `PUT /api/local/profile`, `GET /api/local/overview`, `GET /api/local/sql/challenges`, `POST /api/local/sql/attempts`, `GET /api/local/viva/questions`, `POST /api/local/viva/attempts`, `GET /api/local/evidence`, `DELETE /api/local/data`.
 
 These are genuinely executed/graded exercises over *fictional fixture records*. They are not a claim that the entire Cracked Core Viva, full remote Auralis, Serviette, JobSearch or all ten repo feature sets have been integrated. The older Auralis and Cracked experiment modules still retain clearly labeled synthetic profiles.
 
