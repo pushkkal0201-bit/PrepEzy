@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -21,7 +21,7 @@ def create_app(engine: DemoEngine | None = None) -> FastAPI:
     if os.getenv("PREPEZY_ENV", "development") != "development":
         raise RuntimeError("This synthetic demo API is not production-ready")
     instance = engine or DemoEngine(os.getenv("PREPEZY_DEMO_DB", ":memory:"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.1.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.2.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
     @app.get("/api/health")
@@ -45,6 +45,32 @@ def create_app(engine: DemoEngine | None = None) -> FastAPI:
             return instance.submit(body.learner_id, body.question_id, body.choice_id)
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/demo/skillgraph")
+    def skillgraph():
+        from .learning import skill_graph
+        return skill_graph()
+
+    @app.get("/api/demo/learners/{learner_id}/roadmap")
+    def roadmap(learner_id: str, minutes: int = Query(default=45, ge=15, le=120)):
+        try:
+            return instance.roadmap(learner_id, minutes=minutes)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.get("/api/demo/learners/{learner_id}/evidence")
+    def evidence(learner_id: str):
+        try:
+            return {"learner_id": learner_id, "events": instance.evidence(learner_id)}
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.get("/api/demo/learners/{learner_id}/next-question")
+    def next_question(learner_id: str):
+        try:
+            return instance.next_question(learner_id)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
 
     @app.get("/api/skills/cracked")
     def cracked_skills():

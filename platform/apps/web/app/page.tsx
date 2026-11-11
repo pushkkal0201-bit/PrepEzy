@@ -7,6 +7,8 @@ type Question = { id: string; skill: string; prompt: string; options: Record<str
 type Competency = { id: string; name: string; attempts: number; correct: number; practice_accuracy: number | null; mastery_estimate: number | null; priority: number; status: string };
 type Snapshot = { id: string; target_role: string; synthetic_demo: boolean; total_attempts: number; competencies: Competency[]; recommendation: { skill: string; action: string; reason: string }; limitations: string };
 
+type Roadmap = { minutes_budget: number; minutes_planned: number; activities: { skill: string; title: string; type: string; minutes: number; why: string }[]; limitations: string };
+
 export default function Home() {
   const [learner, setLearner] = useState("demo-backend");
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -16,6 +18,7 @@ export default function Home() {
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
   useEffect(() => {
     let active = true;
     setError("");
@@ -25,6 +28,26 @@ export default function Home() {
     ]).then(([q, s]) => { if (active) { setQuestions(q); setSnapshot(s); } }).catch(e => { if (active) setError(String(e)); });
     return () => { active = false; };
   }, [learner]);
+  useEffect(() => {
+    let active = true;
+    fetch(API + "/api/demo/learners/" + learner + "/roadmap")
+      .then(r => { if (!r.ok) throw Error("Cannot load roadmap"); return r.json(); })
+      .then(r => { if (active) setRoadmap(r); })
+      .catch(e => { if (active) setError(String(e)); });
+    return () => { active = false; };
+  }, [learner, snapshot?.total_attempts]);
+
+  async function practiceNext() {
+    setError("");
+    try {
+      const response = await fetch(API + "/api/demo/learners/" + learner + "/next-question");
+      if (!response.ok) throw Error("Could not load a recommended question");
+      const suggested = await response.json();
+      setQuestionId(suggested.question.id);
+      setChoice("");
+      setFeedback("Selected because: " + suggested.reason);
+    } catch (e) { setError(String(e)); }
+  }
   const current = questions.find(q => q.id === questionId);
   async function submit() {
     if (!choice || !current) return;
@@ -44,8 +67,8 @@ export default function Home() {
     <section className="hero"><p className="eyebrow">LEARN · PRACTICE · PROVE</p><h1>A different preparation journey for every student.</h1><p>These practice questions are graded by the API. Recommendations change when evidence changes—no AI-generated scores and no claims about hiring readiness.</p></section>
     <section className="layout">
       <div className="panel"><h2>1. Choose a demo learner</h2><label htmlFor="learner">Role-specific learning goals</label><select id="learner" value={learner} onChange={e => { setLearner(e.target.value); setFeedback(""); }}><option value="demo-backend">Demo A · Backend Engineer</option><option value="demo-ml">Demo B · ML Engineer</option></select>
-        <h2>2. Complete a knowledge check</h2><label htmlFor="question">Choose a question</label><select id="question" value={questionId} onChange={e => { setQuestionId(e.target.value); setChoice(""); setFeedback(""); }}>{questions.map(q => <option key={q.id} value={q.id}>{q.skill.toUpperCase()} · {q.id}</option>)}</select><p className="prompt">{current?.prompt || "Loading questions..."}</p><fieldset><legend>Answer</legend>{current && Object.entries(current.options).map(([id, name]) => <label className="option" key={id}><input type="radio" name="answer" value={id} checked={choice === id} onChange={() => setChoice(id)}/>{name}</label>)}</fieldset><button disabled={!choice || busy} onClick={submit}>{busy ? "Checking..." : "Submit answer"}</button>{feedback && <p className="feedback" role="status">{feedback}</p>}{error && <p className="error" role="alert">{error}. Start the local API on port 8000.</p>}</div>
+        <h2>2. Complete a knowledge check</h2><button className="secondary-button" onClick={practiceNext}>Choose PrepLoop's next question</button><label htmlFor="question">Choose a question</label><select id="question" value={questionId} onChange={e => { setQuestionId(e.target.value); setChoice(""); setFeedback(""); }}>{questions.map(q => <option key={q.id} value={q.id}>{q.skill.toUpperCase()} · {q.id}</option>)}</select><p className="prompt">{current?.prompt || "Loading questions..."}</p><fieldset><legend>Answer</legend>{current && Object.entries(current.options).map(([id, name]) => <label className="option" key={id}><input type="radio" name="answer" value={id} checked={choice === id} onChange={() => setChoice(id)}/>{name}</label>)}</fieldset><button disabled={!choice || busy} onClick={submit}>{busy ? "Checking..." : "Submit answer"}</button>{feedback && <p className="feedback" role="status">{feedback}</p>}{error && <p className="error" role="alert">{error}. Start the local API on port 8000.</p>}</div>
       <div className="panel"><h2>Live SkillGraph</h2><p className="sub">{snapshot?.target_role || "Loading..."} · {snapshot?.total_attempts ?? 0} server-graded attempts</p><div className="skills">{snapshot?.competencies.map(s => <div className="skill" key={s.id}><div className="skill-line"><strong>{s.name}</strong><span>{s.attempts ? String(Math.round((s.practice_accuracy || 0) * 100)) + "% practice accuracy" : "Unassessed"}</span></div><div className="track"><div className="fill" style={{ width: (s.practice_accuracy || 0) * 100 + "%" }}/></div></div>)}</div><div className="recommend"><span className="eyebrow">PREPLOOP RECOMMENDS</span><h3>{top?.name || "Loading..."}</h3><p>{snapshot?.recommendation.reason}</p><small>{snapshot?.recommendation.action}</small></div><p className="fineprint">{snapshot?.limitations}</p></div>
-    </section><footer>Local prototype only · No real accounts, job applications or upstream AI execution are connected yet.</footer>
+    </section><section className="panel roadmap-panel"><h2>Your adaptive learning roadmap</h2><p className="sub">Prepared from server-graded evidence and role relevance. No account or authentication required for these synthetic profiles.</p><div className="roadmap-grid">{roadmap?.activities.map((activity, i) => <article className="roadmap-step" key={activity.skill}><span className="eyebrow">STEP {i + 1} · {activity.minutes} MIN · {activity.type.toUpperCase().replaceAll("-", " ")}</span><h3>{activity.title}</h3><p>{activity.why}</p></article>)}</div><p className="fineprint">Total: {roadmap?.minutes_planned ?? 0} / {roadmap?.minutes_budget ?? 45} minutes planned. {roadmap?.limitations}</p></section><footer>Local prototype only · No real accounts, job applications or upstream AI execution are connected yet.</footer>
   </main>;
 }

@@ -22,13 +22,14 @@
 ## Feature-parity acceptance work
 
 1. Pin source commits and build a file-level inventory of actual implemented upstream functions and tests.
-2. Add verified Supabase identity and PostgreSQL owner-scoped evidence records, with account deletion and privacy controls.
+2. Complete the local SkillGraph, prerequisite graph, evidence contracts and adaptive recommendation tests with synthetic fixtures; defer authentication.
 3. Integrate Auralis engines without regressing existing interview tests; preserve voice, replay and optional providers.
 4. Convert Cracked skills to explicit API operations with clear capability permissions; use isolated, resource-constrained code grading.
 5. Run Serviette in an isolated Linux/WSL2 environment, protect document ownership and evaluate citation correctness.
 6. Add supported, authorized job connectors and user-reviewed application actions; never fabricate job listings or work history.
 7. Implement Skill Studio and Adaptive Build Lab, initially using curated and attributed resources, not unreviewed code.
-8. Run backend, UI, accessibility, security, live-connector, restore, deployment and end-to-end tests before public launch.
+8. Add verified authentication, PostgreSQL owner-scoped evidence, account deletion and privacy controls before accepting real student data or a public launch.
+9. Run backend, UI, accessibility, security, live-connector, restore, deployment and end-to-end tests before public launch.
 
 ## Scope/claims
 

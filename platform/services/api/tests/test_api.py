@@ -6,7 +6,7 @@ from app.main import create_app
 def test_health_and_questions():
     client = TestClient(create_app(DemoEngine()))
     assert client.get("/api/health").json()["mode"] == "synthetic-demo"
-    assert len(client.get("/api/demo/questions").json()) == 5
+    assert len(client.get("/api/demo/questions").json()) == 10
 
 
 def test_submission_updates_recommendations():
