@@ -181,7 +181,7 @@ class GitHubProjectReview:
             raw = base64.b64decode(response["content"], validate=False)
             if len(raw) > MAX_BLOB_BYTES:
                 raise GitHubReviewUnavailable("Source file exceeds inspection size cap")
-            git_blob = b"blob " + str(len(raw)).encode() + b"\\0" + raw
+            git_blob = b"blob " + str(len(raw)).encode() + b"\0" + raw
             if hashlib.sha1(git_blob).hexdigest() != sha:
                 raise GitHubReviewUnavailable("Source blob content did not match the pinned Git SHA")
             return raw.decode("utf-8")
