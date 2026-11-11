@@ -16,6 +16,7 @@ from .auralis import AuralisClient, AuralisGatewayError, public_session
 from .cracked import public_catalog
 from .local_lab import LocalLab
 from .unified import UnifiedEvidence, LOCAL_NAMESPACE
+from .coding_arena import JudgeUnavailable, public_problems
 
 
 class LocalProfileUpdate(BaseModel):
@@ -32,6 +33,18 @@ class SqlAttempt(BaseModel):
 class VivaAttempt(BaseModel):
     question_id: str = Field(min_length=3, max_length=48)
     choice_id: str = Field(min_length=1, max_length=4)
+
+
+class ArenaSessionRequest(BaseModel):
+    mode: Literal["practice", "timed"] = "timed"
+    duration_minutes: Literal[15, 30, 45, 60] = 30
+
+
+class ArenaSubmission(BaseModel):
+    session_id: str = Field(min_length=32, max_length=32)
+    problem_id: str = Field(min_length=3, max_length=64)
+    language: Literal["python", "java", "javascript"]
+    source: str = Field(min_length=12, max_length=12000)
 
 
 class CodingAttempt(BaseModel):
@@ -63,7 +76,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.6.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.7.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
     local = local_lab if local_lab is not None else LocalLab(
         ":memory:" if engine is not None else os.getenv("PREPEZY_LOCAL_DB", "prepezy_local.sqlite")
@@ -132,6 +145,46 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
             raise HTTPException(404, str(error)) from error
 
     # One local device is one workspace. No client-submitted evidence scores.
+    @app.get("/api/local/arena/problems")
+    def arena_problems():
+        return public_problems()
+
+    @app.get("/api/local/arena/status")
+    def arena_status():
+        return {"availability": unified.arena.availability(),
+                "session": unified.arena.current_session()}
+
+    @app.get("/api/local/arena/evidence")
+    def arena_evidence():
+        return {"attempts": unified.arena.evidence()}
+
+    @app.post("/api/local/arena/sessions")
+    def arena_start(body: ArenaSessionRequest):
+        try:
+            return unified.arena.start(body.mode, body.duration_minutes)
+        except JudgeUnavailable as error:
+            raise HTTPException(503, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/local/arena/sessions/{session_id}/finish")
+    def arena_finish(session_id: str):
+        try:
+            return unified.arena.finish(session_id)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/local/arena/submissions")
+    def arena_submit(body: ArenaSubmission):
+        try:
+            result = unified.arena.submit(body.session_id, body.problem_id,
+                                          body.language, body.source)
+            return {"result": result, "skillgraph": unified.skillgraph()}
+        except JudgeUnavailable as error:
+            raise HTTPException(503, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
     @app.get("/api/local/skillgraph")
     def local_skillgraph():
         return unified.skillgraph()
@@ -239,7 +292,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     def local_delete_data():
         local.reset()
         unified.clear()
-        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code"]}
+        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena"]}
 
     def local_auralis() -> AuralisClient:
         if auralis is None:

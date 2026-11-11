@@ -56,3 +56,11 @@ The `PatternCoach` Next.js component talks to local `/api/demo/.../cracked` endp
 `GET /api/local/skillgraph` returns seven competency dimensions (SQL, DBMS, OS, CN, OOP, DSA concept recognition, restricted Python code) with first independent attempt counts, provenance reference IDs and goal-weighted next activities. These assessment types are **not** collapsed into one readiness score. Recommendations are an interpretable heuristic.
 
 Resetting the workspace deletes local SQL, core, pattern attempts/hints and restricted Python evidence, without touching the old synthetic demo namespaces. The local browser now refreshes unified recommendations after each checked activity. **No authentication was added.**
+
+## Stage 7: Docker-only code execution
+
+`CodingArena` under `services/api/app/coding_arena.py` shares the local SQLite database and lock with `UnifiedEvidence`; it never opens a host interpreter for student source. All user code is written into temporary files and mounted read-only into short-lived Docker containers with `--network none`, `--read-only`, `--cap-drop ALL`, `--security-opt no-new-privileges`, `--user 65534:65534`, CPU/memory/PID limits and bounded `/tmp`.
+
+Timed sessions are enforced by backend timestamps. Outputs are compared against deterministic private test inputs, and submitted code itself is not persisted (only SHA-256 and results). Source evidence is `prepezy-docker-isolated-code-runner`; a separate eighth skill dimension prevents coding performance being conflated with theoretical DSA pattern checks.
+
+**This is an educational local judge, not a certified multi-tenant untrusted-code service.** Do not publicly expose its API or Docker daemon. Use immutable image digests, stronger isolation and independent security review before any public deployment.

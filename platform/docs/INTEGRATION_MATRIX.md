@@ -50,3 +50,9 @@ Reusing MIT-licensed sources does not remove attribution requirements. Check Pat
 A single-device pipeline now aggregates **real** SQL execution, checked Core CS answers, Cracked-inspired Pattern Coach transfer checks and optional verified Auralis restricted coding test results. These are no longer isolated assessment histories for the local workspace. Seven assessment dimensions retain their original evidence types; independent *first* attempts count toward coverage and the explainable PrepLoop roadmap. The old public synthetic-demo learner panels are intentionally not merged, avoiding fabricated user records. Auralis's scripted interview report is still unscored and cannot affect proficiency.
 
 **Still not done:** Student account identity and private multi-user storage (intentionally deferred), complete Cracked OA and multi-language sandbox, real Auralis AI interviews, Serviette RAG, JobSearch integration and remaining learning/catalog features. This stage must not be described as full parity with the ten source repositories.
+
+## Stage 7 — Docker-isolated Coding Arena
+
+**Implemented:** A Docker-only runner for Java, Python and JavaScript, deterministic hidden tests for four original algorithmic problems, 15–60 minute timed sessions, practice mode, persistent result hashes and submission history, Next.js editor, bounded execution, compiler/runtime/timeout verdicts and unified SkillGraph evidence. The actual Docker runner has an opt-in GitHub CI integration job.
+
+**Not claimed:** Full Cracked OA and interview agent parity, multi-tenant secure execution, public hosting, user authentication, live contests, plagiarism detection, deep project compilation or performance-grade algorithm benchmarking. Do not conflate hosted Docker security with a hardened sandbox.
