@@ -72,3 +72,9 @@ Still pending: the original JobSearch Claude Code agent skills, Danish and India
 Implemented: explicit local PDF/DOCX/TXT/MD import, bounded real text extraction, source-located evidence snippets, section and contact-presence inspection, literal skill mention extraction, comparison with stored live ATS jobs, separate verified SkillGraph assessment signals, role-specific conservative preparation suggestions, Next.js Resume Studio, local persistence/delete, and parser/API regression tests.
 
 Not claimed: verified employment or education history, applicant-tracking-system scoring, OCR/scanned PDF parsing, full semantic skill equivalence, layout-preserving resume rewriting, ATS submission, employer review, secure multi-user storage, or production malware-resistant document processing.
+
+## Stage 11 — Build Your Own X-based Adaptive Project Lab
+
+Implemented: curated externally linked Build Your Own X database/search/interpreter resources (no tutorial-copying), six original and genuinely Docker-graded Java/Python/JavaScript milestones over three mini-projects, stage-gating, six server-checked engineering design choices, separate unreviewed learner rationales, persistence, first-attempt SkillGraph evidence in two new dimensions, evidence-based project recommendation, portfolio-link self-reporting, responsive Next.js project workspace, Docker live-integration and backend/API tests.
+
+Not claimed: full upstream Build Your Own X tutorial coverage, full production databases/search engines, arbitrary GitHub repo build and test, model-graded free-form architecture defense, proof of portfolio ownership, plagiarism detection, secure multi-user execution or production authentication.

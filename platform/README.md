@@ -257,6 +257,39 @@ No account system was added. **Only extracted text and provenance are saved in t
 
 **Verification:** Automated tests include actual selectable-text PDF parsing (hand-built valid PDF), DOCX parsing using python-docx, UTF-8 parsing, malformed and image-only PDF rejection, decompression limits, local persistence and deletion, linked job/SkillGraph comparison, no fake assessments, and origin policy.
 
+## Stage 11 — Adaptive Project Lab and Project Defense
+
+This stage turns Build Your Own X (https://github.com/codecrafters-io/build-your-own-x) into **curated external tutorial links plus PrepEzy-authored executable milestones**. The upstream repository is a list of independently published tutorials, not an application API, automated grader or blanket permission to republish authors' tutorials. This project does not copy their content.
+
+### Working local features
+
+- **Three project tracks**: a tiny in-memory key-value store (database topic), an inverted document index (search engine topic), and a small arithmetic expression interpreter (programming language topic). These are educational components, **not complete commercial databases, search engines, or interpreters**.
+- **Six original executable milestones**: each has a precise input/output contract, one public example and additional private fixtures. Source submissions run inside the existing Docker-only Java, Python and JavaScript judge with bounded resources. An unavailable Docker image causes an explicit error rather than unsafe host execution or a fabricated result.
+- **Prerequisite enforcement**: an advanced milestone cannot be submitted until its predecessor passed all Docker tests.
+- **Six design-defense questions**, each checked against an original correct answer. The student also writes technical reasoning, which is stored locally for self/mentor review but **not graded by AI** or counted as a verified quality score. Defense unlocks after at least one executable milestone passes.
+- **Adaptive project recommendation** based on the chosen career role and actual passed/attempted milestones; the next project task is transparent and deterministic.
+- **Unified SkillGraph** now has **10 separate dimensions**. Docker project milestones and checked design choices contribute as distinct evidence types; personal rationale and user-submitted GitHub project links are never silently counted as independently verified code or qualifications. Only the **first attempt** on each distinct milestone/question determines baseline assessment evidence.
+- **Optional GitHub project artifact link** and implementation notes, stored as *self-reported, unverified*. The project lab does not clone or execute repositories supplied by the user.
+- **Persistence and deletion** in the single-device SQLite database. Global local data reset also deletes local project milestones, defense reasoning and artifact links.
+
+### Running
+
+Switch to `feat/adaptive-project-lab` and use the existing backend (`127.0.0.1:8000`) and frontend (`http://localhost:3000`). For real Java/Python/JavaScript submissions, start Docker Desktop in Linux-container mode and pull the Stage 7 images:
+
+```bat
+docker pull python:3.11-alpine
+docker pull node:22-alpine
+docker pull eclipse-temurin:21-jdk-alpine
+```
+
+Go to **Adaptive Project Lab**. Select a curated project or the recommended next project. Open the public test example, write a full stdin/stdout solution, and execute real private test cases. Complete milestones to unlock harder contracts; respond to technical-defense questions with a selected answer **and your own written reasoning**. If you attach a GitHub repository URL, the app labels it unverified.
+
+### Safety, intellectual-property and validation limits
+
+This is a trusted, **single-device educational prototype**, not an adversarially hardened hosted build service. No authentication has been added. The Docker code execution engine never runs student source directly on the Windows host, but Docker is not an absolute security boundary; never publicly expose this unauthenticated API. External linked tutorials have their own copyright/license terms; use them as references rather than copying or redistributing them. The project-defense objective questions are deterministic knowledge checks, not a full human or AI architectural evaluation. The stage intentionally avoids public repository cloning, LLM scoring of free-form technical narratives, invented project completion, and arbitrary command execution.
+
+**Verification:** In addition to unit/API contract tests, the existing opt-in Docker GitHub Actions job executes real Python/JavaScript/Java programs against the first project milestone. More extensive reliability/performance tests and open-ended project-defense evaluations remain future work.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.

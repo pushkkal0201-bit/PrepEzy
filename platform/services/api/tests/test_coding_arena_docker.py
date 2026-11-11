@@ -77,3 +77,93 @@ def test_live_api_session_submission_updates_skillgraph():
     assert graph["sources"]["coding_arena"] == 1
     assert client.delete("/api/local/data").status_code == 200
     assert client.get("/api/local/arena/evidence").json()["attempts"] == []
+
+
+# Stage 11: Actual project milestone programs, not contract/mocked judge results.
+PROJECT_KV_SOLUTIONS = {
+    "python": """import sys
+rows = sys.stdin.read().strip().splitlines()
+n = int(rows[0])
+data = {}
+output = []
+for line in rows[1:n+1]:
+    command = line.split()
+    if command[0] == "PUT":
+        data[command[1]] = command[2]
+    elif command[0] == "GET":
+        output.append(data.get(command[1], "NOT_FOUND"))
+print("\\n".join(output))
+""",
+    "javascript": """const fs = require('fs');
+const lines = fs.readFileSync(0, 'utf8').trim().split(/\\r?\\n/);
+const n = Number(lines[0]);
+const data = new Map();
+const output = [];
+for (const line of lines.slice(1, n + 1)) {
+  const parts = line.trim().split(/\\s+/);
+  if (parts[0] === 'PUT') data.set(parts[1], parts[2]);
+  else if (parts[0] === 'GET') output.push(data.has(parts[1]) ? data.get(parts[1]) : 'NOT_FOUND');
+}
+console.log(output.join('\\n'));
+""",
+    "java": """import java.util.*;
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt();
+        Map<String, String> data = new HashMap<>();
+        List<String> output = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            String op = sc.next();
+            if (op.equals("PUT")) {
+                data.put(sc.next(), sc.next());
+            } else if (op.equals("GET")) {
+                String key = sc.next();
+                output.add(data.getOrDefault(key, "NOT_FOUND"));
+            }
+        }
+        System.out.println(String.join("\\n", output));
+    }
+}
+""",
+}
+
+
+@pytest.mark.parametrize("language", ["python", "javascript", "java"])
+def test_real_stage11_project_milestone_in_docker(language):
+    from app.local_lab import LocalLab
+    from app.unified import UnifiedEvidence
+
+    lab = LocalLab()
+    unified = UnifiedEvidence(lab)
+    assert unified.projects.runner.available(language)
+    output = unified.projects.submit_milestone(
+        "key-value-store", "lookup", language, PROJECT_KV_SOLUTIONS[language]
+    )
+    assert output["all_passed"], output
+    assert output["tests_passed"] == output["tests_total"] == 3
+    assert output["source"] == "prepezy-docker-project-milestone"
+    assert unified.projects.state("key-value-store")["milestones"][1]["unlocked"]
+    skill = next(x for x in unified.skillgraph()["skills"] if x["id"] == "project-build")
+    assert skill["first_try_correct_unassisted"] == 1
+    assert unified.skillgraph()["sources"]["project_milestones"] == 1
+
+
+def test_real_stage11_project_defense_tracks_checked_choice_not_written_rationale():
+    from app.local_lab import LocalLab
+    from app.unified import UnifiedEvidence
+    lab = LocalLab()
+    unified = UnifiedEvidence(lab)
+    result = unified.projects.submit_milestone(
+        "key-value-store", "lookup", "python", PROJECT_KV_SOLUTIONS["python"]
+    )
+    assert result["all_passed"]
+    defense = unified.projects.defend(
+        "key-value-store", "overwrite", "b",
+        "Replacing the existing value leaves the set of distinct keys unchanged."
+    )
+    assert defense["correct"]
+    assert defense["rationale_reviewed"] is False
+    report = unified.skillgraph()
+    assert report["sources"]["project_defense_choices"] == 1
+    assert report["sources"]["project_milestones"] == 1
