@@ -45,3 +45,35 @@ def test_real_java_compiler_error_is_reported():
     judge = DockerRunner()
     checks = judge.run("java", "public class Main { broken code }", PROBLEMS["sum-pair"]["cases"][:1])
     assert checks[0]["status"] == "compile_error", checks
+
+
+def test_live_api_session_submission_updates_skillgraph():
+    """Full Docker -> API -> SQLite -> SkillGraph path; real Python execution."""
+    from fastapi.testclient import TestClient
+    from app.core import DemoEngine
+    from app.local_lab import LocalLab
+    from app.main import create_app
+
+    client = TestClient(create_app(DemoEngine(), local_lab=LocalLab()))
+    ready = client.get("/api/local/arena/status").json()["availability"]["ready"]
+    assert ready["python"], "The CI job must pre-pull Python"
+    start = client.post("/api/local/arena/sessions", json={
+        "mode": "timed", "duration_minutes": 15
+    })
+    assert start.status_code == 200, start.text
+    session_id = start.json()["id"]
+    submitted = client.post("/api/local/arena/submissions", json={
+        "session_id": session_id, "problem_id": "sum-pair", "language": "python",
+        "source": SOLUTIONS["python"]
+    })
+    assert submitted.status_code == 200, submitted.text
+    result = submitted.json()["result"]
+    assert result["all_passed"] is True, result
+    assert result["tests_passed"] == result["tests_total"] == 4
+    graph = client.get("/api/local/skillgraph").json()
+    coding = next(s for s in graph["skills"] if s["id"] == "coding")
+    assert coding["distinct_assessments"] == 1
+    assert coding["first_try_correct_unassisted"] == 1
+    assert graph["sources"]["coding_arena"] == 1
+    assert client.delete("/api/local/data").status_code == 200
+    assert client.get("/api/local/arena/evidence").json()["attempts"] == []
