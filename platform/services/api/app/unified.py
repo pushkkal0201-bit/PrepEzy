@@ -30,10 +30,10 @@ ACTIONS = {"sql": "sql-practice", "dbms": "core-viva", "os": "core-viva",
            "cn": "core-viva", "oop": "core-viva",
            "dsa": "pattern-coach", "python": "restricted-python", "coding": "coding-arena"}
 ROLE_EXTRA = {
-    "backend": {"dsa": 0.85, "python": 0.45, "coding": 1.0},
+    "backend": {"dsa": 0.85, "python": 0.45, "coding": 0.95},
     "data": {"dsa": 0.4, "python": 0.7, "coding": 0.55},
     "ml": {"dsa": 0.8, "python": 1.0, "coding": 0.85},
-    "fullstack": {"dsa": 0.85, "python": 0.8, "coding": 1.0},
+    "fullstack": {"dsa": 0.85, "python": 0.8, "coding": 0.95},
 }
 CHALLENGES = {"sum_numbers", "reverse_text", "palindrome", "range_span", "clamp"}
 
