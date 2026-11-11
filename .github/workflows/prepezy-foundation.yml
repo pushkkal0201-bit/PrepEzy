@@ -33,3 +33,51 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run build
+
+  auralis-live-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: pushkkal0201-bit/auralis-interview-studio
+          ref: bed71fe2556841c918848b289457c8cc6d6738d9
+          path: auralis-upstream
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PrepEzy and Auralis dependencies
+        run: |
+          python -m pip install -r platform/services/api/requirements.txt
+          python -m pip install -r auralis-upstream/auralis/requirements.txt
+      - name: Start real Auralis local scripted server
+        run: |
+          cd auralis-upstream/auralis
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 > /tmp/auralis-integration.log 2>&1 &
+          echo $! > /tmp/auralis-integration.pid
+      - name: Wait for real Auralis health
+        run: |
+          python - <<'PY'
+          import time
+          import urllib.request
+          import json
+          for attempt in range(50):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:8001/api/health", timeout=2) as response:
+                      value = json.load(response)
+                      if value.get("status") == "ok" and value.get("demo_available") is True:
+                          print("Auralis ready:", value.get("version"))
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("Auralis did not start: inspect job logs")
+          PY
+      - name: Exercise real prepare/start/answer/finish through PrepEzy
+        working-directory: platform/services/api
+        env:
+          PREPEZY_RUN_AURALIS_LIVE: '1'
+        run: python -m pytest -q tests/test_auralis_live.py
+      - name: Show Auralis logs if failed
+        if: failure()
+        run: cat /tmp/auralis-integration.log || true
