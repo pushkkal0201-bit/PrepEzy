@@ -21,7 +21,7 @@ def test_catalog_never_exposes_answer_keys():
     assert items["adaptation"].startswith("PrepEzy-authored")
     assert items["source_skill"].endswith("pattern-coach/SKILL.md")
     assert len(items["patterns"]) == 4
-    assert all("answer" not in str(item).lower() for item in items["patterns"])
+    assert all("answer" not in item and "options" not in item for item in items["patterns"])
     state = DemoEngine().coach.state("demo-backend", "two-pointers")
     assert "answer" not in state["step"]
     assert "why" not in state["step"]
