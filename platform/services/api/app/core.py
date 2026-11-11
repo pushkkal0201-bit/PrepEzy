@@ -112,11 +112,17 @@ class DemoEngine:
         self.validate_learner(learner)
         with self._lock:
             rows = self.db.execute("SELECT question, correct FROM attempts WHERE learner=? ORDER BY id", (learner,)).fetchall()
-        stats = {skill: {"attempts": 0, "correct": 0} for skill in SKILLS}
+        # A retry of the same question is useful feedback, but it is not
+        # independent evidence of proficiency. Only the latest result for
+        # each *distinct* question contributes to the competency estimate.
+        latest_by_question = {}
         for question, correct in rows:
+            latest_by_question[question] = int(correct)
+        stats = {skill: {"attempts": 0, "correct": 0} for skill in SKILLS}
+        for question, correct in latest_by_question.items():
             skill = QUESTIONS[question]["skill"]
             stats[skill]["attempts"] += 1
-            stats[skill]["correct"] += int(correct)
+            stats[skill]["correct"] += correct
         weights = LEARNERS[learner]["weights"]
         competencies = []
         for skill, item in stats.items():
@@ -128,4 +134,4 @@ class DemoEngine:
         competencies.sort(key=lambda c: (-c["priority"], c["id"]))
         top = competencies[0]
         reason = ("No assessment recorded yet; establish a baseline for this role." if top["attempts"] == 0 else "Recent server-graded answers suggest this topic needs further practice.")
-        return {"id": learner, "synthetic_demo": True, "target_role": LEARNERS[learner]["role"], "total_attempts": len(rows), "competencies": competencies, "recommendation": {"skill": top["id"], "action": "baseline-assessment" if top["attempts"] == 0 else "guided-practice", "reason": reason}, "limitations": "Practice-only estimate from a small quiz; not a certification or hiring prediction."}
+        return {"id": learner, "synthetic_demo": True, "target_role": LEARNERS[learner]["role"], "total_attempts": len(rows), "distinct_questions": len(latest_by_question), "competencies": competencies, "recommendation": {"skill": top["id"], "action": "baseline-assessment" if top["attempts"] == 0 else "guided-practice", "reason": reason}, "limitations": "Practice-only estimate from a small quiz; not a certification or hiring prediction."}

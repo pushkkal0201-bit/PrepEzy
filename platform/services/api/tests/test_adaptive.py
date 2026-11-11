@@ -86,3 +86,15 @@ def test_progress_can_change_recommendation():
     engine.submit("demo-backend", "dsa-2", "a")
     changed = engine.snapshot("demo-backend")["recommendation"]["skill"]
     assert original == "dsa" and changed != original
+
+
+def test_retries_do_not_inflate_independent_skill_evidence():
+    engine = DemoEngine()
+    for _ in range(8):
+        engine.submit("demo-backend", "dsa-1", "b")
+    snapshot = engine.snapshot("demo-backend")
+    dsa = next(c for c in snapshot["competencies"] if c["id"] == "dsa")
+    assert snapshot["total_attempts"] == 8
+    assert snapshot["distinct_questions"] == 1
+    assert dsa["attempts"] == 1
+    assert dsa["confidence"] == 0.2
