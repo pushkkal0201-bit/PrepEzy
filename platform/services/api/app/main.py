@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from .core import DemoEngine
 from .auralis import AuralisClient, AuralisGatewayError, public_session
+from .cracked import public_catalog
 
 
 class CodingAttempt(BaseModel):
@@ -21,6 +22,11 @@ class CodingAttempt(BaseModel):
 class InterviewAnswer(BaseModel):
     question_id: str = Field(min_length=3, max_length=80)
     text: str = Field(min_length=1, max_length=8000)
+
+
+class PatternAnswer(BaseModel):
+    step_id: str = Field(min_length=2, max_length=24)
+    choice_id: str = Field(min_length=1, max_length=4)
 
 
 class Attempt(BaseModel):
@@ -37,7 +43,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.3.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.4.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
     @app.get("/api/health")
@@ -202,6 +208,53 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
             return upstream
         except AuralisGatewayError as error:
             raise HTTPException(error.status, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/demo/cracked/patterns")
+    def cracked_patterns():
+        return public_catalog()
+
+    @app.get("/api/demo/learners/{learner_id}/cracked/recommendation")
+    def cracked_recommendation(learner_id: str):
+        try:
+            instance.validate_learner(learner_id)
+            return instance.coach.recommendation(learner_id)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.get("/api/demo/learners/{learner_id}/cracked/evidence")
+    def cracked_evidence(learner_id: str):
+        try:
+            instance.validate_learner(learner_id)
+            return {"learner_id": learner_id, "results": instance.coach.evidence(learner_id),
+                    "transfer_grades": instance.coach.independent_transfer_grades(learner_id)}
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.get("/api/demo/learners/{learner_id}/cracked/patterns/{pattern_id}")
+    def cracked_pattern_state(learner_id: str, pattern_id: str):
+        try:
+            instance.validate_learner(learner_id)
+            return instance.coach.state(learner_id, pattern_id)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.post("/api/demo/learners/{learner_id}/cracked/patterns/{pattern_id}/hint")
+    def cracked_pattern_hint(learner_id: str, pattern_id: str):
+        try:
+            instance.validate_learner(learner_id)
+            return instance.coach.hint(learner_id, pattern_id)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/demo/learners/{learner_id}/cracked/patterns/{pattern_id}/answers")
+    def cracked_pattern_answer(learner_id: str, pattern_id: str, body: PatternAnswer):
+        try:
+            instance.validate_learner(learner_id)
+            result = instance.coach.submit(learner_id, pattern_id, body.step_id, body.choice_id)
+            return {"result": result, "learner": instance.snapshot(learner_id),
+                    "roadmap": instance.roadmap(learner_id)}
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
 

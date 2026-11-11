@@ -34,3 +34,7 @@
 ## Scope/claims
 
 Reusing MIT-licensed sources does not remove attribution requirements. Check Pathway and third-party tutorial licensing separately. Keep design tools out of the product runtime. No hackathon eligibility claim is made without event-specific rules.
+
+## Stage 4 status — Cracked
+
+\`skills/interview/pattern-coach/SKILL.md\` has been adapted to a **functional local-only guided reasoning workflow** with four PrepEzy-authored curricula and deterministic grading. \`platform/apps/web/app/PatternCoach.tsx\` provides the UI. Distinct-pattern transfer checks contribute limited DSA concept evidence to SkillGraph. The full Cracked skill pack remains intact; OA simulator, company-intel sources, executable SQL viva and other agent skills are not yet integrated as web workflows.

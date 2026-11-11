@@ -72,6 +72,21 @@ The Next.js UI will show whether the **actual** local service is reachable. Use 
 
 The integration is deliberately local-only: the adapter blocks remote/HTTPS upstream URLs, follows no redirects, sends no user documents, and exposes only reduced session details. Demo owner tokens are deterministic synthetic namespace labels, *not credentials*. No cross-device, production or real-student privacy guarantees exist.
 
+## Stage 4: Cracked Pattern Coach — real local reasoning workflow
+
+PrepEzy includes a deterministic adaptation of Cracked's Socratic [pattern-coach skill](../../skills/interview/pattern-coach/SKILL.md), not a claimed Claude Code execution. The Next.js module uses the local FastAPI service to guide four curated DSA patterns: two pointers, sliding window, binary search on the answer, and breadth-first search. Each has an ordered brute-force, insight, and transfer checkpoint. Students can request hints; answers are validated on the backend, and attempts, hints and transfer-check evidence are stored in SQLite.
+
+- \`GET /api/demo/cracked/patterns\`: curated pattern catalog with attribution.
+- \`GET /api/demo/learners/{learner_id}/cracked/recommendation\`: deterministic pattern suggestion.
+- \`GET /api/demo/learners/{learner_id}/cracked/patterns/{pattern_id}\`: next step without its answer key.
+- \`POST /api/demo/learners/{learner_id}/cracked/patterns/{pattern_id}/hint\`: record help and return a hint.
+- \`POST /api/demo/learners/{learner_id}/cracked/patterns/{pattern_id}/answers\`: server-check the answer.
+- \`GET /api/demo/learners/{learner_id}/cracked/evidence\`: attempt history and first-transfer-check evidence.
+
+Only the first transfer check per distinct pattern contributes a DSA **concept-recognition** observation. A correct answer after assistance or retry may complete the lesson but does not retroactively count as unassisted proficiency. No arbitrary code is executed, and the larger Cracked OA simulator, company intelligence and core viva remain separate future milestones.
+
+All data is synthetic and local; authentication remains deferred.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.

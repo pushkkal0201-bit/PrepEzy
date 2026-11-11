@@ -42,3 +42,9 @@ The demo uses synthetic account IDs that are *not* authentication. Do not expose
 3. Connect Cracked assessments and isolated grading, then Serviette and JobSearch via explicit interfaces.
 4. Evaluate adaptation against fixed practice baselines.
 5. Add verified identity and account-scoped storage before any public or real-student deployment.
+
+## Stage 4 Cracked adaptation (implemented in this branch)
+
+The existing Cracked \`skills/interview/pattern-coach/SKILL.md\` supplies the Socratic learning specification. PrepEzy implements original static exercises in \`app/cracked.py\`. No untrusted \`SKILL.md\` is executed. \`PatternCoach\` advances through checked stages, records hint requests and stores graded answers in SQLite. Only each pattern's first transfer result supplies one distinct DSA concept-recognition observation; retries cannot inflate independent evidence. This is not equivalent to independently executed algorithm implementations.
+
+The \`PatternCoach\` Next.js component talks to local \`/api/demo/.../cracked\` endpoints. All profiles are synthetic; no remote agent or LLM is called.
