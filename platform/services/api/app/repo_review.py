@@ -7,7 +7,9 @@ and compare to *user-supplied* expectations, NOT independently verified tests.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
+import threading
 import hashlib
 import json
 import re
@@ -116,10 +118,12 @@ def _findings(path: str, text: str, sha: str, owner: str, name: str, commit: str
 class GitHubProjectReview:
     def __init__(self, db: sqlite3.Connection, lock: RLock,
                  transport: httpx.AsyncBaseTransport | None = None,
-                 runner: DockerRunner | None = None):
+                 runner: DockerRunner | None = None,
+                 gate: threading.BoundedSemaphore | None = None):
         self.db, self.lock = db, lock
         self.transport = transport
         self.runner = runner or DockerRunner()
+        self.gate = gate if gate is not None else threading.BoundedSemaphore(1)
         with lock:
             db.execute("""CREATE TABLE IF NOT EXISTS github_review_snapshots(
                 id INTEGER PRIMARY KEY, repo TEXT NOT NULL, repo_url TEXT NOT NULL,
@@ -177,6 +181,9 @@ class GitHubProjectReview:
             raw = base64.b64decode(response["content"], validate=False)
             if len(raw) > MAX_BLOB_BYTES:
                 raise GitHubReviewUnavailable("Source file exceeds inspection size cap")
+            git_blob = b"blob " + str(len(raw)).encode() + b"\\0" + raw
+            if hashlib.sha1(git_blob).hexdigest() != sha:
+                raise GitHubReviewUnavailable("Source blob content did not match the pinned Git SHA")
             return raw.decode("utf-8")
         except (ValueError, UnicodeDecodeError, TypeError, KeyError) as exc:
             raise GitHubReviewUnavailable("Blob is not a small UTF-8 source file") from exc
@@ -276,6 +283,25 @@ class GitHubProjectReview:
                        "Markers are not verified functionality, ownership, code quality or SkillGraph mastery."),
         }
 
+    def context(self) -> dict:
+        """Unscored source context only; never a new mastery dimension."""
+        with self.lock:
+            snapshot_count = self.db.execute(
+                "SELECT COUNT(*) FROM github_review_snapshots"
+            ).fetchone()[0]
+            answer_count = self.db.execute(
+                "SELECT COUNT(*) FROM github_review_answers"
+            ).fetchone()[0]
+            smoke_count = self.db.execute(
+                "SELECT COUNT(*) FROM github_review_smoke"
+            ).fetchone()[0]
+        return {
+            "snapshots": snapshot_count, "unreviewed_explanations": answer_count,
+            "user_defined_smoke_checks": smoke_count,
+            "counts_as_skill_assessment": False,
+            "notice": "GitHub static inspection and self-defined smoke checks are never scored in SkillGraph.",
+        }
+
     def history(self) -> dict:
         with self.lock:
             rows = self.db.execute("""SELECT id,repo,commit_sha,created_at
@@ -318,7 +344,7 @@ class GitHubProjectReview:
         snapshot = self.snapshot(snapshot_id)
         file = next((x for x in snapshot["candidate_files"]
                      if x["path"] == file_path and x["language"] == language), None)
-        if file is None or language not in IMAGES:
+        if file is None or language not in IMAGES or file_path not in snapshot["inventory"]["inspected_paths"]:
             raise ValueError("Select a previously snapshotted, supported Python/JavaScript/Java file")
         if not isinstance(cases, list) or not 1 <= len(cases) <= 3:
             raise ValueError("Provide one to three user-specified stdin/expected-stdout cases")
@@ -341,7 +367,12 @@ class GitHubProjectReview:
         if not 12 <= len(src.encode("utf-8")) <= 12000:
             raise ValueError("Only standalone source files of 12–12,000 bytes can be smoke-tested")
         # DockerRunner runs each test with no network and strict resource limits.
-        checks = self.runner.run(language, src, pairs)
+        if not self.gate.acquire(blocking=False):
+            raise JudgeUnavailable("The local Docker judge is already processing another submission")
+        try:
+            checks = await asyncio.to_thread(self.runner.run, language, src, pairs)
+        finally:
+            self.gate.release()
         passed = sum(x["status"] == "accepted" for x in checks)
         success = len(checks) == len(pairs) and passed == len(pairs)
         verdict = "matched-user-expected-output" if success else next(
