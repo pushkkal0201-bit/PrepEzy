@@ -206,8 +206,13 @@ class ServietteGateway:
         route = "/api/v1/rag" if answer else "/api/v1/retrieve"
         value = await self._request("POST", route, json={"query": query.strip(), "k": k})
         if answer and value.get("upstream_not_implemented"):
-            # Explicit retrieval-only fallback, never invent a generated answer.
-            return await self.retrieve(query, k, False)
+            # Explicit retrieval-only fallback; keep the reason visible.
+            retrieved = await self.retrieve(query, k, False)
+            retrieved["notice"] = (
+                "Serviette /rag is unavailable without its configured answer model; "
+                "showing retrieved passages only. No generated answer was produced."
+            )
+            return retrieved
         hits = value.get("sources" if answer else "results", [])
         if not isinstance(hits, list):
             raise ServietteUnavailable("Serviette response is missing a valid result list")
