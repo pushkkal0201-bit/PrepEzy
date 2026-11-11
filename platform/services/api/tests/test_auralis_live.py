@@ -38,3 +38,15 @@ def test_real_upstream_auralis_interview_start_answer_finish():
     assert all(item["score"] is None for item in result["report"]["items"])
     roadmap = client.get("/api/demo/learners/demo-backend/roadmap").json()
     assert roadmap["activities"][0]["type"] == "interview-reflection"
+    catalog = client.get("/api/demo/integrations/auralis/challenges")
+    assert catalog.status_code == 200 and catalog.json()["challenges"]
+    graded = client.post("/api/demo/learners/demo-backend/code", json={
+        "challenge_id": "sum_numbers",
+        "code": "def solve(nums):\\n    return sum(nums)",
+    })
+    assert graded.status_code == 200, graded.text
+    result = graded.json()["result"]
+    assert result["source"] == "restricted_ast_test_runner"
+    assert result["passed"] == result["total"] == 5
+    python = next(c for c in graded.json()["learner"]["competencies"] if c["id"] == "python")
+    assert python["attempts"] == 1 and python["correct"] == 1

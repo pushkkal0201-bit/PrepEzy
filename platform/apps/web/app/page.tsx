@@ -18,6 +18,8 @@ type AuralisInterview = {
   report: { summary: string; scored: boolean; demo: boolean; limitations: string[]; items: { name: string; status: string; score: number | null; feedback: string; evidence_count: number }[] } | null;
   notice: string;
 };
+type AuralisChallenge = { id: string; title: string; description: string; starter: string; hint: string };
+type CodeGrade = { challenge_id: string; passed: number; total: number; all_passed: boolean; source: string; limitations: string; tests: { test: number; public: boolean; status: string }[] };
 type AuralisStatus = { enabled: boolean; connected: boolean; message?: string; upstream_version?: string };
 type InterviewHistory = { id: string; status: string; answer_count: number }[];
 type Roadmap = { minutes_budget: number; minutes_planned: number; activities: { skill: string; title: string; type: string; minutes: number; why: string }[]; limitations: string };
@@ -39,6 +41,12 @@ export default function Home() {
   const [interviewText, setInterviewText] = useState("");
   const [interviewError, setInterviewError] = useState("");
   const [interviewBusy, setInterviewBusy] = useState(false);
+  const [challenges, setChallenges] = useState<AuralisChallenge[]>([]);
+  const [selectedChallenge, setSelectedChallenge] = useState("");
+  const [codeSource, setCodeSource] = useState("");
+  const [codeGrade, setCodeGrade] = useState<CodeGrade | null>(null);
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeError, setCodeError] = useState("");
   useEffect(() => {
     let active = true;
     setError("");
@@ -85,6 +93,51 @@ export default function Home() {
       setFeedback("Selected because: " + suggested.reason);
     } catch (e) { setError(String(e)); }
   }
+  useEffect(() => {
+    let active = true;
+    setCodeGrade(null);
+    setCodeError("");
+    if (!auralisStatus?.connected) {
+      setChallenges([]);
+      setSelectedChallenge("");
+      setCodeSource("");
+      return;
+    }
+    fetch(API + "/api/demo/integrations/auralis/challenges?learner_id=" + learner)
+      .then(r => { if (!r.ok) throw Error("Auralis coding catalog unavailable"); return r.json(); })
+      .then(data => {
+        if (!active) return;
+        const list: AuralisChallenge[] = data.challenges || [];
+        setChallenges(list);
+        setSelectedChallenge(list[0]?.id || "");
+        setCodeSource(list[0]?.starter || "");
+      }).catch(e => { if (active) setCodeError(String(e)); });
+    return () => { active = false; };
+  }, [auralisStatus?.connected, learner]);
+
+  async function runAuralisCode() {
+    if (!selectedChallenge || !codeSource.trim()) return;
+    setCodeBusy(true);
+    setCodeError("");
+    try {
+      const response = await fetch(API + "/api/demo/learners/" + learner + "/code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challenge_id: selectedChallenge, code: codeSource }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        throw Error(err?.detail || "Auralis rejected this restricted exercise");
+      }
+      const graded = await response.json();
+      setCodeGrade(graded.result);
+      setSnapshot(graded.learner);
+      setRefresh(x => x + 1);
+    } catch (e) {
+      setCodeError(String(e));
+    } finally { setCodeBusy(false); }
+  }
+
   async function interviewAction(kind: "start" | "answer" | "finish" | "resume") {
     setInterviewBusy(true);
     setInterviewError("");
@@ -169,6 +222,32 @@ export default function Home() {
         </div>}
       </div>}
       {interviewError && <p className="error" role="alert">{interviewError}</p>}
-    </section><footer>Local synthetic prototype only · No real accounts, real student data or public deployment. Auralis scripted interviews are unscored.</footer>
+    </section><section className="panel practical-panel">
+      <p className="eyebrow">REAL AURALIS RESTRICTED TEST RUNNER</p>
+      <h2>Adaptive coding lab</h2>
+      <p className="sub">When local Auralis is connected, it evaluates a constrained Python return expression against real public and hidden tests. Results become independent evidence for the Python skill, without executing arbitrary Python.</p>
+      {!auralisStatus?.connected && <p className="sub">Start the optional local Auralis service to unlock verified coding exercises.</p>}
+      {auralisStatus?.connected && <div className="practical-form">
+        <label htmlFor="auralis-challenge">Challenge</label>
+        <select id="auralis-challenge" value={selectedChallenge} onChange={e => {
+          setSelectedChallenge(e.target.value);
+          setCodeSource(challenges.find(c => c.id === e.target.value)?.starter || "");
+          setCodeGrade(null);
+        }}>
+          {challenges.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+        </select>
+        <p>{challenges.find(c => c.id === selectedChallenge)?.description}</p>
+        <label htmlFor="auralis-source">Restricted Python solution</label>
+        <textarea id="auralis-source" rows={6} maxLength={2500} spellCheck={false} value={codeSource} onChange={e => setCodeSource(e.target.value)} />
+        <div className="interview-actions"><button disabled={codeBusy || !selectedChallenge || !codeSource.trim()} onClick={runAuralisCode}>{codeBusy ? "Checking..." : "Run Auralis test cases"}</button></div>
+        {codeGrade && <div className="code-results" role="status">
+          <strong>{codeGrade.passed} / {codeGrade.total} tests passed</strong>
+          <p>{codeGrade.all_passed ? "All fixed challenge tests passed." : "Some fixed challenge tests did not pass."}</p>
+          <div className="code-test-list">{codeGrade.tests.map(t => <span key={t.test} className={"test-pill " + (t.status === "pass" ? "passed" : "failed")}>Test {t.test}: {t.status}{t.public ? " · public" : " · hidden"}</span>)}</div>
+          <p className="fineprint">{codeGrade.limitations}</p>
+        </div>}
+        {codeError && <p className="error" role="alert">{codeError}</p>}
+      </div>}
+    </section><footer>Local synthetic prototype only · No real accounts, real student data or public deployment. Auralis scripted interviews are unscored; its restricted coding tests are independently graded.</footer>
   </main>;
 }

@@ -13,6 +13,11 @@ from .core import DemoEngine
 from .auralis import AuralisClient, AuralisGatewayError, public_session
 
 
+class CodingAttempt(BaseModel):
+    challenge_id: str = Field(min_length=1, max_length=48)
+    code: str = Field(min_length=8, max_length=2500)
+
+
 class InterviewAnswer(BaseModel):
     question_id: str = Field(min_length=3, max_length=80)
     text: str = Field(min_length=1, max_length=8000)
@@ -102,6 +107,35 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
                     )}
         except AuralisGatewayError as error:
             return {"enabled": True, "connected": False, "mode": "local-scripted-demo", "message": str(error)}
+
+    @app.get("/api/demo/integrations/auralis/challenges")
+    async def auralis_challenges(learner_id: str = "demo-backend"):
+        try:
+            instance.validate_learner(learner_id)
+            return await local_auralis().coding_catalog(learner_id)
+        except AuralisGatewayError as error:
+            raise HTTPException(error.status, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/demo/learners/{learner_id}/code")
+    async def auralis_coding_attempt(learner_id: str, body: CodingAttempt):
+        try:
+            instance.validate_learner(learner_id)
+            result = await local_auralis().grade_code(learner_id, body.challenge_id, body.code)
+            instance.record_auralis_code(learner_id, result)
+            return {"result": result, "learner": instance.snapshot(learner_id)}
+        except AuralisGatewayError as error:
+            raise HTTPException(error.status, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/demo/learners/{learner_id}/code/evidence")
+    def auralis_code_evidence(learner_id: str):
+        try:
+            return {"learner_id": learner_id, "results": instance.code_history(learner_id)}
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
 
     @app.get("/api/demo/learners/{learner_id}/interviews")
     def interview_history(learner_id: str):

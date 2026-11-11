@@ -39,3 +39,11 @@ After a real Auralis session completes, PrepEzy stores an `auralis_interviews` r
 ## Explicit limitations
 
 This is a working **scripted-demo runtime adapter**, not live LLM grading, real-person identity, continuous speech transcription, or a production interview service. The latter will require consent, explicit model integration, owner-scoped storage and stronger trust boundaries. Do not use any numerical competency claims from scripted Auralis sessions.
+
+## Restricted coding lab integration
+
+The Auralis `GET /api/practical/catalog` and `POST /api/practical/code` endpoints are genuine upstream functionality, implemented in `app/practical_lab.py`. Unlike scripted mock interviews, they evaluate a deliberately restricted subset of Python through an allowlisted AST interpreter against predefined visible and hidden tests. This is **not** arbitrary Python execution and does not support loops, imports, modules or complex DSA programs.
+
+PrepEzy exposes `GET /api/demo/integrations/auralis/challenges`, `POST /api/demo/learners/{id}/code`, and `GET /api/demo/learners/{id}/code/evidence` while the local Auralis service is connected.
+
+Results are admitted only if the upstream service reports the exact `restricted_ast_test_runner` provenance, a recognized challenge ID, and internally consistent pass counts. The gateway does not accept claimed scores from the browser. Scores are preserved only as bounded pass/fail evidence from this lab, not general proficiency or employability certificates. Across attempts, each distinct challenge contributes at most one current competency observation, preventing repeated solves from artificially inflating confidence. User code is **not** persisted in PrepEzy's evidence table.

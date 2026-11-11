@@ -39,6 +39,17 @@ def make_transport(calls):
         assert request.url.host == "127.0.0.1"
         assert request.headers.get("X-Owner-Token") and len(request.headers["X-Owner-Token"]) == 64
         p = request.url.path
+        if p == "/api/practical/catalog":
+            return httpx.Response(200, json={
+                "execution_policy": "Restricted AST expression interpretation; no arbitrary Python execution",
+                "challenges": [{"id": "sum_numbers", "title": "Sum a list", "description": "Return total", "starter": "def solve(nums):\\n    return 0", "hint": "Use sum."}],
+            })
+        if p == "/api/practical/code":
+            return httpx.Response(200, json={
+                "challenge_id": "sum_numbers", "passed": 5, "total": 5,
+                "all_passed": True, "source": "restricted_ast_test_runner",
+                "tests": [{"test": i + 1, "status": "pass", "public": i < 2} for i in range(5)],
+            })
         if p == "/api/health":
             return httpx.Response(200, json={"status": "ok", "demo_available": True})
         if p == "/api/sessions" and request.method == "POST":
@@ -117,3 +128,36 @@ def test_auralis_unavailable_is_explicit():
     result = TestClient(create_app(DemoEngine(), auralis_client=adapter)).get("/api/demo/integrations/auralis")
     assert result.status_code == 200
     assert result.json()["connected"] is False
+
+
+def test_restricted_ast_grades_update_skillgraph_without_retry_inflation():
+    adapter = AuralisClient(transport=make_transport([]))
+    client = TestClient(create_app(DemoEngine(), auralis_client=adapter))
+    catalog = client.get("/api/demo/integrations/auralis/challenges")
+    assert catalog.status_code == 200
+    assert catalog.json()["challenges"][0]["id"] == "sum_numbers"
+    before = client.get("/api/demo/learners/demo-backend").json()
+    payload = {"challenge_id": "sum_numbers", "code": "def solve(nums):\\n    return sum(nums)"}
+    response = client.post("/api/demo/learners/demo-backend/code", json=payload)
+    assert response.status_code == 200, response.text
+    assert response.json()["result"]["source"] == "restricted_ast_test_runner"
+    after = response.json()["learner"]
+    python = next(c for c in after["competencies"] if c["id"] == "python")
+    assert python["attempts"] == 1 and python["correct"] == 1
+    assert client.post("/api/demo/learners/demo-backend/code", json=payload).status_code == 200
+    again = client.get("/api/demo/learners/demo-backend").json()
+    python = next(c for c in again["competencies"] if c["id"] == "python")
+    assert python["attempts"] == 1
+    assert len(client.get("/api/demo/learners/demo-backend/code/evidence").json()["results"]) == 2
+    assert client.get("/api/demo/learners/demo-ml/code/evidence").json()["results"] == []
+    assert before["total_attempts"] == after["total_attempts"] == 0
+
+
+def test_unverified_auralis_scores_are_rejected():
+    engine = DemoEngine()
+    with pytest.raises(ValueError):
+        engine.record_auralis_code("demo-ml", {
+            "challenge_id": "sum_numbers", "passed": 5, "total": 5,
+            "all_passed": True, "source": "fictional_provider",
+        })
+    assert engine.code_history("demo-ml") == []

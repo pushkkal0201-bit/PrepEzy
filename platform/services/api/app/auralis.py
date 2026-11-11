@@ -77,6 +77,64 @@ class AuralisClient:
     async def health(self) -> dict:
         return await self.call("demo-backend", "GET", "/api/health")
 
+    async def coding_catalog(self, learner: str) -> dict:
+        response = await self.call(learner, "GET", "/api/practical/catalog")
+        if not str(response.get("execution_policy", "")).startswith("Restricted AST"):
+            raise AuralisGatewayError("Auralis did not advertise restricted AST evaluation.")
+        challenges = response.get("challenges") or []
+        if not isinstance(challenges, list):
+            raise AuralisGatewayError("Auralis challenge catalog was malformed.")
+        return {
+            "execution_policy": response["execution_policy"],
+            "challenges": [
+                {
+                    "id": str(x.get("id", ""))[:48],
+                    "title": str(x.get("title", ""))[:120],
+                    "description": str(x.get("description", ""))[:500],
+                    "starter": str(x.get("starter", ""))[:2500],
+                    "hint": str(x.get("hint", ""))[:400],
+                }
+                for x in challenges[:20] if isinstance(x, dict)
+            ],
+            "source": "real-local-auralis-practical-catalog",
+        }
+
+    async def grade_code(self, learner: str, challenge_id: str, code: str) -> dict:
+        if challenge_id not in {"sum_numbers", "reverse_text", "palindrome", "range_span", "clamp"}:
+            raise ValueError("Unknown Auralis restricted coding challenge")
+        if not 8 <= len(code) <= 2500:
+            raise ValueError("Code must contain 8 to 2500 characters")
+        response = await self.call(learner, "POST", "/api/practical/code", {
+            "challenge_id": challenge_id,
+            "code": code,
+        })
+        passed, total = response.get("passed"), response.get("total")
+        if (response.get("source") != "restricted_ast_test_runner" or
+                response.get("challenge_id") != challenge_id or
+                type(passed) is not int or type(total) is not int or
+                not 1 <= total <= 30 or not 0 <= passed <= total or
+                response.get("all_passed") is not (passed == total)):
+            raise AuralisGatewayError("Auralis returned an invalid coding assessment.")
+        rows = response.get("tests") or []
+        if not isinstance(rows, list) or len(rows) != total:
+            raise AuralisGatewayError("Auralis returned incomplete test evidence.")
+        tests = []
+        for item in rows:
+            if not isinstance(item, dict) or item.get("status") not in ("pass", "fail", "error"):
+                raise AuralisGatewayError("Invalid Auralis test case status.")
+            test = {"test": item.get("test"), "status": item["status"], "public": item.get("public") is True}
+            if test["public"]:
+                test.update({"input": item.get("input"), "expected": item.get("expected"), "actual": item.get("actual")})
+            tests.append(test)
+        return {
+            "challenge_id": challenge_id,
+            "passed": passed, "total": total,
+            "all_passed": passed == total,
+            "source": "restricted_ast_test_runner",
+            "tests": tests,
+            "limitations": "Restricted expression-only Python practice; tests are not proof of general Python proficiency.",
+        }
+
     async def create_and_start(self, learner: str) -> dict:
         profile = DEMO_PROFILES.get(learner)
         if profile is None:
