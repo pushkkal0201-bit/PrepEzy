@@ -22,6 +22,7 @@ from .career import CareerEngine
 from .resume import ResumeIntelligence, MAX_BYTES as RESUME_MAX_BYTES
 from .project_lab import PROJECTS
 from .repo_review import GitHubProjectReview, GitHubReviewUnavailable
+from .mock_interview import MockInterviews
 
 
 class LocalProfileUpdate(BaseModel):
@@ -115,6 +116,17 @@ class RepositorySmokeRequest(BaseModel):
     approved: bool
 
 
+class MockInterviewStart(BaseModel):
+    focus: Literal["balanced", "coding", "project"] = "balanced"
+    snapshot_id: int | None = Field(default=None, ge=1)
+
+
+class MockInterviewResponse(BaseModel):
+    question_id: str = Field(min_length=3, max_length=80)
+    response: str = Field(min_length=30, max_length=2000)
+    probe: Literal["edge_cases", "tradeoffs", "verification"] = "edge_cases"
+
+
 class CodingAttempt(BaseModel):
     challenge_id: str = Field(min_length=1, max_length=48)
     code: str = Field(min_length=8, max_length=2500)
@@ -144,7 +156,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.12.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.13.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
     local = local_lab if local_lab is not None else LocalLab(
         ":memory:" if engine is not None else os.getenv("PREPEZY_LOCAL_DB", "prepezy_local.sqlite")
@@ -160,6 +172,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     career = career_client if career_client is not None else CareerEngine(local.db, local.lock)
     resumes = resume_client if resume_client is not None else ResumeIntelligence(local.db, local.lock)
     repo_review = repo_review_client if repo_review_client is not None else GitHubProjectReview(local.db, local.lock, runner=unified.arena.runner, gate=unified.arena.capacity)
+    mocks = MockInterviews(local.db, local.lock, unified, repo_review)
 
     @app.middleware("http")
     async def local_network_gate(request: Request, call_next):
@@ -229,6 +242,44 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     # Curated, educational Build Your Own X links; original Docker-checked milestones.
     # Public GitHub REST inspection, commit-pinned source evidence and user-
     # approved single-file Docker smoke checks. No arbitrary clone/test commands.
+    # Stage 13: persisted interview flow with evidence-based question selection.
+    # Oral answers are saved but never treated as verified SkillGraph marks.
+    @app.get("/api/local/mock-interviews")
+    def mock_interview_history():
+        return mocks.history()
+
+    @app.post("/api/local/mock-interviews")
+    def mock_interview_start(body: MockInterviewStart):
+        try:
+            return mocks.start(body.focus, body.snapshot_id)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/mock-interviews/{session_id}")
+    def mock_interview_session(session_id: str):
+        try:
+            return mocks.session(session_id)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.post("/api/local/mock-interviews/{session_id}/responses")
+    def mock_interview_response(session_id: str, body: MockInterviewResponse):
+        try:
+            return mocks.respond(session_id, body.question_id, body.response, body.probe)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/local/mock-interviews/{session_id}/finish")
+    def mock_interview_finish(session_id: str):
+        try:
+            return mocks.finish(session_id)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.delete("/api/local/mock-interviews")
+    def mock_interview_delete():
+        return mocks.clear()
+
     @app.get("/api/local/repositories/history")
     def repo_review_history():
         return repo_review.history()
@@ -654,7 +705,8 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
         career.delete_local_career_data()
         resumes.clear()
         repo_review.clear()
-        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena", "career_data", "resume_data", "project_lab", "github_review_context"]}
+        mocks.clear()
+        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena", "career_data", "resume_data", "project_lab", "github_review_context", "mock_interviews"]}
 
     def local_auralis() -> AuralisClient:
         if auralis is None:

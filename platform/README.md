@@ -327,3 +327,24 @@ Auralis is **optionally** connected to the actual local scripted-demo service wh
 See [integration matrix](docs/INTEGRATION_MATRIX.md) and [architecture](docs/ARCHITECTURE.md). The immediate milestones are deeper SkillGraph and PrepLoop tests, trusted evidence adapter contracts and verified Auralis integration, followed by Cracked execution adapters, isolated Serviette, JobSearch workflows and the adaptive project lab. Supabase and multi-user infrastructure are deliberately deferred.
 
 Original third-party licenses and attribution must remain preserved. No claim of end-to-end integration or production readiness is made.
+
+
+## Stage 13 — Evidence-grounded adaptive mock interviews (local only)
+
+The integrated **Mock Interview Studio** now combines actual historical Docker coding
+verdicts, SkillGraph priorities and optional commit-pinned GitHub source markers
+into one persistent interview. Select a balanced, coding-first or project-first
+session; answer each question and choose an edge-case, trade-off or verification
+follow-up. Sessions, answers, progress and reflection reports persist in SQLite.
+
+This is *not* AI grading: technical explanations stay unscored, source markers
+do not prove ownership, and submitted learner-defined smoke checks are not
+independent quality certification. Stage 13 does not fabricate SkillGraph marks
+or require the optional Auralis process.
+
+Routes: GET/POST/DELETE /api/local/mock-interviews;
+GET /api/local/mock-interviews/{session_id};
+POST /api/local/mock-interviews/{session_id}/responses;
+POST /api/local/mock-interviews/{session_id}/finish.
+
+See [Stage 13 behavior, trust boundaries and test commands](docs/ADAPTIVE_MOCK_INTERVIEWS.md).
