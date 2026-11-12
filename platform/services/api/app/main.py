@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, File, UploadFile
 from pydantic import Field
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -19,6 +19,7 @@ from .unified import UnifiedEvidence, LOCAL_NAMESPACE
 from .coding_arena import JudgeUnavailable, public_problems
 from .knowledge import NotesFolder, ServietteGateway, ServietteUnavailable, suggest_from_skillgraph
 from .career import CareerEngine
+from .resume import ResumeIntelligence, MAX_BYTES as RESUME_MAX_BYTES
 
 
 class LocalProfileUpdate(BaseModel):
@@ -97,7 +98,7 @@ class Attempt(BaseModel):
     choice_id: str
 
 
-def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None, local_lab: LocalLab | None = None, knowledge_client: ServietteGateway | None = None, notes_folder: NotesFolder | None = None, career_client: CareerEngine | None = None) -> FastAPI:
+def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None, local_lab: LocalLab | None = None, knowledge_client: ServietteGateway | None = None, notes_folder: NotesFolder | None = None, career_client: CareerEngine | None = None, resume_client: ResumeIntelligence | None = None) -> FastAPI:
     if os.getenv("PREPEZY_ENV", "development") != "development":
         raise RuntimeError("This synthetic demo API is not production-ready")
     instance = engine or DemoEngine(os.getenv("PREPEZY_DEMO_DB", ":memory:"))
@@ -105,7 +106,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.9.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.10.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
     local = local_lab if local_lab is not None else LocalLab(
         ":memory:" if engine is not None else os.getenv("PREPEZY_LOCAL_DB", "prepezy_local.sqlite")
@@ -119,6 +120,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
         os.getenv("PREPEZY_KNOWLEDGE_DIR", "prepezy-knowledge")
     )
     career = career_client if career_client is not None else CareerEngine(local.db, local.lock)
+    resumes = resume_client if resume_client is not None else ResumeIntelligence(local.db, local.lock)
 
     @app.middleware("http")
     async def local_network_gate(request: Request, call_next):
@@ -184,6 +186,41 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     # One local device is one workspace. No client-submitted evidence scores.
     # JobSearch-inspired real published-board discovery and review-only drafts.
     # All ATS requests use fixed public read-only Greenhouse/Lever hosts.
+    # Real document extraction and role review. No outbound resume uploads.
+    @app.get("/api/local/resume/status")
+    def resume_status():
+        return resumes.status()
+
+    @app.post("/api/local/resume/upload")
+    async def resume_upload(file: UploadFile = File(...)):
+        name = file.filename or ""
+        try:
+            raw = await file.read(RESUME_MAX_BYTES + 1)
+            return resumes.upload(name, raw)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        finally:
+            await file.close()
+
+    @app.get("/api/local/resume/inspection")
+    def resume_inspection():
+        try:
+            return resumes.inspect()
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.get("/api/local/resume/jobs/{job_id}/analysis")
+    def resume_job_analysis(job_id: str):
+        try:
+            job = career.get(job_id)
+            return resumes.for_job(job, unified.skillgraph())
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.delete("/api/local/resume")
+    def resume_clear():
+        return resumes.clear()
+
     @app.get("/api/local/careers/boards")
     def career_boards():
         return {"boards": career.boards()}
@@ -471,7 +508,8 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
         local.reset()
         unified.clear()
         career.delete_local_career_data()
-        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena", "career_data"]}
+        resumes.clear()
+        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena", "career_data", "resume_data"]}
 
     def local_auralis() -> AuralisClient:
         if auralis is None:

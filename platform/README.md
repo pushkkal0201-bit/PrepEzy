@@ -223,6 +223,40 @@ CI tests verify real adapter code against mocked official JSON schemas, local da
 
 Authentication remains deferred. Use only on a trusted local machine, never publicly deploy, and do not commit personal career data to GitHub.
 
+## Stage 10 — Local Resume Intelligence and role-specific preparation
+
+**Implemented:** Real PDF, DOCX, UTF-8 TXT and Markdown resume text extraction (not a simulated parser); source-located excerpts; conservative document-structure checks; literal skill mention detection; comparison with an employer posting actually fetched through the Career Studio; separate verified SkillGraph evidence; and a role-specific study/review plan.
+
+### Use it
+
+Install Stage 10 dependencies once after fetching this branch:
+
+    cd /d D:\Projects\PrepEzy-Platform\platform\services\api
+    .venv\Scripts\python -m pip install -r requirements.txt
+
+Start the existing FastAPI backend on 127.0.0.1:8000 and Next.js frontend on localhost:3000. In Resume Intelligence, explicitly select and import a PDF/DOCX/TXT/Markdown file (maximum 2 MiB; PDFs up to 8 pages), review its extraction/sections, and choose a real job that you previously fetched in Career Intelligence. The resulting comparison shows the original resume snippets with page/line or document/line locations, unmentioned posting requirements, separately assessed SkillGraph outcomes, and next actions based on actual available evidence.
+
+No account system was added. **Only extracted text and provenance are saved in the local SQLite database; original uploaded PDF/Word bytes are not stored.** The local resume can be replaced or deleted, and the global reset also deletes it. The API never sends the resume to an external LLM, ATS provider or employer. Do not use this unauthenticated version for confidential resumes, or expose it to other devices.
+
+### Trust and verification limits
+
+- All resume statements are **self-reported**. Seeing a technology word on a resume does not verify the user can use it; actual SQL/coding assessments are reported as a distinct category.
+- PrepEzy does not invent an ATS match percentage, infer personal achievements, certify job readiness, claim that a company reviewed the resume, or submit applications.
+- Images and scanned/image-only PDFs are explicitly **not OCR-processed**. The importer reports that there is insufficient selectable text rather than inventing an extraction.
+- It is a simple text/heading extractor. Complex PDF layouts, columns, graphics, tables, and skill synonyms can lead to omissions. Users should inspect the text sample and review findings.
+- Uploaded PDF/DOCX parsing is performed by local Python libraries with file, page and decompression limits; these are not a substitute for fully hardened adversarial file processing in a public service.
+- Candidate job requirements are selected from previously fetched public Greenhouse or Lever snapshots; availability and terms may have changed.
+
+### Local API
+
+- GET /api/local/resume/status
+- POST /api/local/resume/upload (multipart form file)
+- GET /api/local/resume/inspection
+- GET /api/local/resume/jobs/{job_id}/analysis
+- DELETE /api/local/resume
+
+**Verification:** Automated tests include actual selectable-text PDF parsing (hand-built valid PDF), DOCX parsing using python-docx, UTF-8 parsing, malformed and image-only PDF rejection, decompression limits, local persistence and deletion, linked job/SkillGraph comparison, no fake assessments, and origin policy.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.
