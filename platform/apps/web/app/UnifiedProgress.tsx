@@ -7,6 +7,7 @@ import KnowledgeHub from "./KnowledgeHub";
 import CareerStudio from "./CareerStudio";
 import ResumeStudio from "./ResumeStudio";
 import ProjectLab from "./ProjectLab";
+import GitHubReviewStudio from "./GitHubReviewStudio";
 
 const API = process.env.NEXT_PUBLIC_PREPEZY_API_URL || "http://localhost:8000";
 
@@ -132,6 +133,7 @@ export default function UnifiedProgress({ refresh, onEvidence }: { refresh: numb
     <CareerStudio refresh={refresh}/>
     <ResumeStudio refresh={refresh}/>
     <ProjectLab refresh={refresh} onEvidence={onEvidence}/>
+    <GitHubReviewStudio/>
     <section className="panel unified-auralis">
       <p className="eyebrow">AURALIS · REAL RESTRICTED CODE CHECKS</p>
       <h3>Python practice with executed test cases</h3>

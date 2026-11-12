@@ -290,6 +290,22 @@ This is a trusted, **single-device educational prototype**, not an adversarially
 
 **Verification:** In addition to unit/API contract tests, the existing opt-in Docker GitHub Actions job executes real Python/JavaScript/Java programs against the first project milestone. More extensive reliability/performance tests and open-ended project-defense evaluations remain future work.
 
+## Stage 12 — GitHub Project Evidence and Technical Defense
+
+A real **PUBLIC, read-only GitHub REST integration** inspects a student-chosen repository URL, resolves its default-branch HEAD to an immutable commit and tree, and reads a bounded source subset. No git cloning, arbitrary URL crawling, automatic repository commands, fabricated code findings or authorship assertions.
+
+**Implemented:**
+- Accept only HTTPS `github.com/owner/repo` roots; outbound traffic is limited to read-only `api.github.com` repository, commit, tree and blob endpoints. No GitHub token is required for public repos; API rate limits apply. Private repos, truncated trees, very large files and unrecognized formats are explicitly unsupported. Limit: 14 small UTF-8 file inspections per snapshot, up to 24 KB per eligible file.
+- Verify each fetched blob's **Git SHA-1** from actual content; save a timestamped, commit-pinned source inventory and specific code-marker line citations. Test-file discovery is based on filenames only, **not evidence that tests passed**. Missing findings in the bounded subset are never treated as proof of missing features.
+- Source-triggered technical-defense prompts (routes, database actions, tests, React state, networking or algorithms). Explanations are saved locally for self/mentor review and explicitly **not graded**; project quality, code security and ownership are not inferred from regex markers.
+- Optional, **explicitly user-approved** smoke check for one previously inspected standalone Python/JavaScript/Java file. The file is retrieved at its exact pinned Git blob; the student supplies one to three stdin/expected-stdout cases. The existing restricted, network-disabled Docker runner executes actual source. **No arbitrary shell command, npm/pytest command, repository cloning or host execution**. A matching output means only that the actual program matched the *student's own declared expectation*, NOT that independently authored tests passed.
+- A **non-scoring GitHub review context** is included in `GET /api/local/skillgraph`. Static inspections, written explanations and self-defined smoke tests NEVER increase or reduce SkillGraph mastery or modify assessment event count. All data can be deleted locally; authentication is still deferred.
+- A Next.js GitHub Review Studio with snapshots, source-linked questions, ungraded response history, file selection, explicit approval checkbox, actual Docker verdicts and deletion controls.
+
+**Run:** Update to the Stage 12 branch and start the existing local FastAPI backend on 127.0.0.1:8000 and Next.js frontend on localhost:3000. Open **GitHub Project Evidence**, inspect a public repo, select an actual source citation and write your technical explanation. Running a standalone repo file is strictly optional; pull the Stage 7 Docker image for Python, Node or Java and approve the exact file and expected output before doing so.
+
+**Verification boundary:** Contract tests exercise actual GitHub REST metadata/tree/blob formats via mocked HTTP responses (not live GitHub network scans inside CI). A separate opt-in Docker job executes real Python/JavaScript/Java pinned-source smoke programs, using mock GitHub responses. Real public repository inspection requires GitHub access and sufficient API quota at runtime. The code is a trusted single-device prototype, **not** a secure public untrusted-code execution service. Do not expose the unauthenticated API to the internet.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.

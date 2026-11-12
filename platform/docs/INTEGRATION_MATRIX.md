@@ -78,3 +78,9 @@ Not claimed: verified employment or education history, applicant-tracking-system
 Implemented: curated externally linked Build Your Own X database/search/interpreter resources (no tutorial-copying), six original and genuinely Docker-graded Java/Python/JavaScript milestones over three mini-projects, stage-gating, six server-checked engineering design choices, separate unreviewed learner rationales, persistence, first-attempt SkillGraph evidence in two new dimensions, evidence-based project recommendation, portfolio-link self-reporting, responsive Next.js project workspace, Docker live-integration and backend/API tests.
 
 Not claimed: full upstream Build Your Own X tutorial coverage, full production databases/search engines, arbitrary GitHub repo build and test, model-graded free-form architecture defense, proof of portfolio ownership, plagiarism detection, secure multi-user execution or production authentication.
+
+## Stage 12 — GitHub Project Evidence
+
+Implemented: public GitHub REST source snapshot and immutable SHA verification, bounded static source citations and test-file inventory, server-authored source-specific defense questions with ungraded learner rationales, explicitly approved single-file Docker execution using learner-provided expected stdout, local SQLite evidence and deletion, unscored SkillGraph context, and Next.js review interface. Contract tests use controlled realistic GitHub API responses; integration tests execute real Python/JavaScript/Java in Docker using a mocked GitHub upstream.
+
+Still unavailable: full arbitrary repository test suites, safe multi-file application execution, private GitHub accounts, ownership proof, complete semantic code review, verified authorship, AI-graded technical explanations, independent grading of user-supplied expected outputs, and safe multi-user public deployment.
