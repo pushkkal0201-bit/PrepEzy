@@ -18,6 +18,7 @@ from .local_lab import LocalLab
 from .unified import UnifiedEvidence, LOCAL_NAMESPACE
 from .coding_arena import JudgeUnavailable, public_problems
 from .knowledge import NotesFolder, ServietteGateway, ServietteUnavailable, suggest_from_skillgraph
+from .career import CareerEngine
 
 
 class LocalProfileUpdate(BaseModel):
@@ -34,6 +35,22 @@ class SqlAttempt(BaseModel):
 class VivaAttempt(BaseModel):
     question_id: str = Field(min_length=3, max_length=48)
     choice_id: str = Field(min_length=1, max_length=4)
+
+
+class CareerBoardInput(BaseModel):
+    provider: Literal["greenhouse", "lever"]
+    token: str = Field(min_length=1, max_length=60)
+    company: str = Field(min_length=2, max_length=120)
+
+
+class CareerProfileInput(BaseModel):
+    facts: str = Field(max_length=6000)
+    preferred_location: str = Field(default="", max_length=100)
+
+
+class CareerStageInput(BaseModel):
+    stage: Literal["saved", "applied", "interviewing", "offer", "rejected", "withdrawn"]
+    notes: str = Field(default="", max_length=1500)
 
 
 class KnowledgeNoteRequest(BaseModel):
@@ -80,7 +97,7 @@ class Attempt(BaseModel):
     choice_id: str
 
 
-def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None, local_lab: LocalLab | None = None, knowledge_client: ServietteGateway | None = None, notes_folder: NotesFolder | None = None) -> FastAPI:
+def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None, local_lab: LocalLab | None = None, knowledge_client: ServietteGateway | None = None, notes_folder: NotesFolder | None = None, career_client: CareerEngine | None = None) -> FastAPI:
     if os.getenv("PREPEZY_ENV", "development") != "development":
         raise RuntimeError("This synthetic demo API is not production-ready")
     instance = engine or DemoEngine(os.getenv("PREPEZY_DEMO_DB", ":memory:"))
@@ -88,7 +105,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.8.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.9.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
     local = local_lab if local_lab is not None else LocalLab(
         ":memory:" if engine is not None else os.getenv("PREPEZY_LOCAL_DB", "prepezy_local.sqlite")
@@ -101,6 +118,7 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     notes = notes_folder if notes_folder is not None else NotesFolder(
         os.getenv("PREPEZY_KNOWLEDGE_DIR", "prepezy-knowledge")
     )
+    career = career_client if career_client is not None else CareerEngine(local.db, local.lock)
 
     @app.middleware("http")
     async def local_network_gate(request: Request, call_next):
@@ -164,6 +182,87 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
             raise HTTPException(404, str(error)) from error
 
     # One local device is one workspace. No client-submitted evidence scores.
+    # JobSearch-inspired real published-board discovery and review-only drafts.
+    # All ATS requests use fixed public read-only Greenhouse/Lever hosts.
+    @app.get("/api/local/careers/boards")
+    def career_boards():
+        return {"boards": career.boards()}
+
+    @app.post("/api/local/careers/boards")
+    def career_add_board(body: CareerBoardInput):
+        try:
+            return career.add_board(body.provider, body.token, body.company)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.delete("/api/local/careers/boards/{provider}/{token}")
+    def career_remove_board(provider: str, token: str):
+        try:
+            return career.remove_board(provider, token)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/local/careers/refresh")
+    async def career_refresh():
+        return await career.refresh()
+
+    @app.get("/api/local/careers/profile")
+    def career_profile():
+        return career.profile()
+
+    @app.put("/api/local/careers/profile")
+    def career_update_profile(body: CareerProfileInput):
+        try:
+            return career.update_profile(body.facts, body.preferred_location)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/careers/jobs")
+    def career_jobs(q: str = Query(default="", max_length=100),
+                    location: str = Query(default="", max_length=100),
+                    limit: int = Query(default=30, ge=1, le=100)):
+        try:
+            return career.jobs(unified.skillgraph(), search=q, location=location, limit=limit)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/careers/jobs/{job_id}")
+    def career_job(job_id: str):
+        try:
+            return {**career.get(job_id), "match": career.match(career.get(job_id), unified.skillgraph())}
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.get("/api/local/careers/jobs/{job_id}/drafts")
+    def career_drafts(job_id: str):
+        try:
+            return {"drafts": career.drafts(job_id)}
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.post("/api/local/careers/jobs/{job_id}/drafts")
+    def career_draft(job_id: str):
+        try:
+            return career.draft(job_id)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/careers/applications")
+    def career_applications():
+        return {"applications": career.applications(),
+                "notice": "Statuses are manually recorded and are not confirmed by employers."}
+
+    @app.put("/api/local/careers/applications/{job_id}")
+    def career_update_application(job_id: str, body: CareerStageInput):
+        try:
+            return career.update_application(job_id, body.stage, body.notes)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.delete("/api/local/careers/data")
+    def career_delete_data():
+        return career.delete_local_career_data()
+
     @app.get("/api/local/knowledge/status")
     async def knowledge_status():
         upstream = await knowledge.status()
@@ -371,7 +470,8 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     def local_delete_data():
         local.reset()
         unified.clear()
-        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena"]}
+        career.delete_local_career_data()
+        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code", "coding_arena", "career_data"]}
 
     def local_auralis() -> AuralisClient:
         if auralis is None:
