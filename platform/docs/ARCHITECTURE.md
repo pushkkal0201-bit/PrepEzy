@@ -86,3 +86,13 @@ ResumeIntelligence shares the LocalLab SQLite connection and lock. Explicit file
 Comparison requires an actual snapshot from CareerEngine.get(job_id). Literal resume keyword mentions are reported with verbatim citations; independent code/SQL/Core SkillGraph evidence is reported separately. The role preparation plan prioritizes unmentioned posting requirements for factual review, mentioned-but-unassessed requirements for practice, and existing PrepLoop recommendations. Nothing here changes the independently verified SkillGraph. A local resume deletion and the global local reset remove all stored extracted text.
 
 All candidate claims remain self-reported, and the web app deliberately does not produce an ungrounded ATS score or hiring predictions. This remains local only until identity, privacy, and hostile-document isolation have been independently addressed.
+
+## Stage 11 — Project Lab architecture
+
+ProjectLab shares UnifiedEvidence's SQLite connection/RLock and the same bounded-semaphore / DockerRunner infrastructure as CodingArena. Each original project milestone defines a stable stdin/stdout specification with server-side fixtures. The browser sees only public examples; hidden tests never become user-submitted correctness criteria. Every attempt is an actual Docker verdict with source SHA-256, language and timestamp. Advanced milestones require an accepted preceding milestone. No source text or learner-supplied arbitrary executable requirements are stored.
+
+A separate set of fixed design-defense questions is checked by server-side answer keys only after at least one actual project milestone passes. Students must submit a technical rationale, which remains locally saved and explicitly **unreviewed**; it is not included in a grade or model-generated assessment. GitHub portfolio links are validated for shape but are not cloned, inspected, or counted as evidence of code correctness.
+
+UnifiedEvidence now adds two **distinct** dimensions: project-build (first independent Docker milestone attempt) and project-defense (first checked multiple-choice decision). Retrying cannot overwrite first-attempt evidence. Local progression and career-role recommendations are transparent heuristics. Build Your Own X supplies curated external links only and is not copied or treated as a project execution API.
+
+No authentication and no secure hosted multi-user sandbox yet. API must remain on 127.0.0.1; future deployment requires user isolation, quotas, stronger code isolation and independently reviewed student-submitted content.
