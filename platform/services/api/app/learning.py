@@ -77,6 +77,25 @@ def make_roadmap(snapshot: dict, minutes: int = 45) -> dict:
             "minutes": length, "why": why, "content_status": "local-curated-demo",
         })
 
+    # Reflect on a genuinely recorded Auralis session without inventing
+    # an interview score, competence judgment, or AI provider assessment.
+    completed = next(
+        (entry for entry in snapshot.get("interview_history", [])
+         if entry["status"] == "completed" and entry["answer_count"] > 0),
+        None,
+    )
+    if completed and used + 10 <= minutes:
+        used += 10
+        activities.append({
+            "skill": "interview",
+            "title": "Review your recorded Auralis interview answers",
+            "type": "interview-reflection",
+            "minutes": 10,
+            "why": f"Auralis recorded {completed['answer_count']} answer(s) in scripted demo mode; they are unscored. Review the evidence and identify a concept to practice.",
+            "source_reference": completed["id"],
+            "content_status": "real-auralis-recorded-unscored",
+        })
+
     for competency in snapshot["competencies"]:
         if len(activities) >= 4:
             break

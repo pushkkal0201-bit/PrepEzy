@@ -40,6 +40,20 @@ class DemoEngine:
         self._lock = RLock()
         self.db = sqlite3.connect(str(db_path), check_same_thread=False)
         self.db.execute("CREATE TABLE IF NOT EXISTS attempts (id INTEGER PRIMARY KEY, learner TEXT NOT NULL, question TEXT NOT NULL, choice TEXT NOT NULL, correct INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)")
+        self.db.execute(
+            """CREATE TABLE IF NOT EXISTS auralis_interviews (
+                 session_id TEXT PRIMARY KEY, learner TEXT NOT NULL, provider TEXT NOT NULL,
+                 status TEXT NOT NULL, answer_count INTEGER NOT NULL DEFAULT 0,
+                 scored INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+               )"""
+        )
+        self.db.execute(
+            """CREATE TABLE IF NOT EXISTS auralis_code_results (
+                 id INTEGER PRIMARY KEY, learner TEXT NOT NULL, challenge TEXT NOT NULL,
+                 passed INTEGER NOT NULL, total INTEGER NOT NULL,
+                 source TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+               )"""
+        )
         self.db.commit()
 
     @staticmethod
@@ -63,6 +77,84 @@ class DemoEngine:
             self.db.execute("INSERT INTO attempts (learner, question, choice, correct) VALUES (?, ?, ?, ?)", (learner, question, choice, int(correct)))
             self.db.commit()
         return {"correct": correct, "explanation": q["explanation"], "learner": self.snapshot(learner)}
+
+    def record_auralis_code(self, learner: str, result: dict) -> None:
+        """Record only independently graded Auralis restricted-AST outcomes, not code."""
+        self.validate_learner(learner)
+        challenge = result.get("challenge_id")
+        if challenge not in {"sum_numbers", "reverse_text", "palindrome", "range_span", "clamp"}:
+            raise ValueError("Unknown upstream challenge")
+        passed, total = result.get("passed"), result.get("total")
+        if (result.get("source") != "restricted_ast_test_runner" or
+                type(passed) is not int or type(total) is not int or
+                not 1 <= total <= 30 or not 0 <= passed <= total or
+                result.get("all_passed") is not (passed == total)):
+            raise ValueError("Malformed upstream grading result")
+        with self._lock:
+            self.db.execute(
+                "INSERT INTO auralis_code_results (learner,challenge,passed,total,source) VALUES (?,?,?,?,?)",
+                (learner, challenge, passed, total, result["source"]),
+            )
+            self.db.commit()
+
+    def code_history(self, learner: str) -> list[dict]:
+        self.validate_learner(learner)
+        with self._lock:
+            rows = self.db.execute(
+                """SELECT id, challenge, passed, total, source, created_at
+                   FROM auralis_code_results WHERE learner=? ORDER BY id DESC LIMIT 30""",
+                (learner,),
+            ).fetchall()
+        return [
+            {"id": rid, "challenge_id": challenge, "passed": passed, "total": total,
+             "all_passed": passed == total, "source": source, "created_at": recorded}
+            for rid, challenge, passed, total, source, recorded in rows
+        ]
+
+    def register_interview(self, learner: str, sid: str, status: str, answer_count: int = 0) -> None:
+        """Link only real upstream sessions to our synthetic learner namespace."""
+        self.validate_learner(learner)
+        if not sid.startswith("session_") or not isinstance(answer_count, int) or answer_count < 0:
+            raise ValueError("Invalid local Auralis link")
+        with self._lock:
+            existing = self.db.execute(
+                "SELECT learner FROM auralis_interviews WHERE session_id=?", (sid,)
+            ).fetchone()
+            if existing and existing[0] != learner:
+                raise ValueError("Auralis session belongs to a different synthetic learner")
+            self.db.execute(
+                """INSERT INTO auralis_interviews(session_id, learner, provider, status, answer_count, scored)
+                   VALUES (?, ?, 'scripted-demo', ?, ?, 0)
+                   ON CONFLICT(session_id) DO UPDATE SET
+                     status=excluded.status, answer_count=excluded.answer_count,
+                     updated_at=CURRENT_TIMESTAMP""",
+                (sid, learner, status, answer_count),
+            )
+            self.db.commit()
+
+    def owns_interview(self, learner: str, sid: str) -> bool:
+        self.validate_learner(learner)
+        with self._lock:
+            row = self.db.execute(
+                "SELECT 1 FROM auralis_interviews WHERE session_id=? AND learner=?",
+                (sid, learner),
+            ).fetchone()
+        return bool(row)
+
+    def interview_history(self, learner: str) -> list[dict]:
+        self.validate_learner(learner)
+        with self._lock:
+            rows = self.db.execute(
+                """SELECT session_id, provider, status, answer_count, scored, updated_at
+                   FROM auralis_interviews WHERE learner=?
+                   ORDER BY updated_at DESC, rowid DESC LIMIT 30""",
+                (learner,),
+            ).fetchall()
+        return [
+            {"id": sid, "provider": provider, "status": status,
+             "answer_count": count, "scored": bool(scored), "updated_at": updated}
+            for sid, provider, status, count, scored, updated in rows
+        ]
 
     def evidence(self, learner: str, limit: int = 30) -> list[dict]:
         """Server-verified quiz evidence for a synthetic demo learner, latest first."""
@@ -123,6 +215,15 @@ class DemoEngine:
             skill = QUESTIONS[question]["skill"]
             stats[skill]["attempts"] += 1
             stats[skill]["correct"] += correct
+        # One independent Python observation per distinct Auralis challenge.
+        # Repeated solves of the same problem are useful practice but do not
+        # inflate the number of independent competency observations.
+        latest_code = {}
+        for entry in reversed(self.code_history(learner)):
+            latest_code[entry["challenge_id"]] = entry["all_passed"]
+        for all_passed in latest_code.values():
+            stats["python"]["attempts"] += 1
+            stats["python"]["correct"] += int(all_passed)
         weights = LEARNERS[learner]["weights"]
         competencies = []
         for skill, item in stats.items():
@@ -133,5 +234,5 @@ class DemoEngine:
             competencies.append({"id": skill, "name": SKILLS[skill], "attempts": attempts, "correct": item["correct"], "practice_accuracy": round(accuracy, 3) if accuracy is not None else None, "mastery_estimate": mastery, "confidence": round(min(1.0, attempts / 5.0), 3), "priority": round(priority, 3), "status": "unassessed" if not attempts else "review" if accuracy < 0.7 else "practice-more"})
         competencies.sort(key=lambda c: (-c["priority"], c["id"]))
         top = competencies[0]
-        reason = ("No assessment recorded yet; establish a baseline for this role." if top["attempts"] == 0 else "Recent server-graded answers suggest this topic needs further practice.")
-        return {"id": learner, "synthetic_demo": True, "target_role": LEARNERS[learner]["role"], "total_attempts": len(rows), "distinct_questions": len(latest_by_question), "competencies": competencies, "recommendation": {"skill": top["id"], "action": "baseline-assessment" if top["attempts"] == 0 else "guided-practice", "reason": reason}, "limitations": "Practice-only estimate from a small quiz; not a certification or hiring prediction."}
+        reason = ("No assessment recorded yet; establish a baseline for this role." if top["attempts"] == 0 else "Recorded local assessment evidence suggests this topic needs further practice.")
+        return {"id": learner, "synthetic_demo": True, "target_role": LEARNERS[learner]["role"], "total_attempts": len(rows), "distinct_questions": len(latest_by_question), "interview_history": self.interview_history(learner), "auralis_code_history": self.code_history(learner), "competencies": competencies, "recommendation": {"skill": top["id"], "action": "baseline-assessment" if top["attempts"] == 0 else "guided-practice", "reason": reason}, "limitations": "Practice-only estimate from a small quiz; not a certification or hiring prediction."}

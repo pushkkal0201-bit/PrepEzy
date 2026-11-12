@@ -45,6 +45,33 @@ To store only **synthetic demo** attempts across local restarts, set an optional
 set PREPEZY_DEMO_DB=D:\Projects\prepezy-demo.sqlite
 ```
 
+## Stage 3: Real Auralis local interview connector (authentication remains deferred)
+
+This is an opt-in integration with the **actual Auralis application**, not an invented question generator. Auralis can start interviews, progress through questions, record answers, and generate a genuine upstream **scripted, unscored** report. PrepLoop adds a ten-minute reflection step when an Auralis interview with recorded answers is completed. Auralis demo reports never alter SkillGraph's graded competency estimates. **Auralis's independent restricted-AST coding lab DOES produce deterministic graded evidence**: a solution is evaluated against fixed public/hidden test cases, and each distinct challenge adds at most one Python competency observation. Repeated attempts do not inflate the independent evidence count.
+
+The local API uses Auralis's real `/api/sessions`, `/start`, `/actions` and `/finish` endpoints, plus `/api/health`. Real student data, hosted providers and login are not enabled.
+
+**Start Auralis separately** from your checkout at `D:\\Projects\\PrepEzy-Sources\\auralis-interview-studio\\auralis` (adjust path to your actual clone):
+
+```bat
+cd /d D:\\Projects\\PrepEzy-Sources\\auralis-interview-studio\\auralis
+py -3.11 -m venv .venv
+.venv\\Scripts\\python -m pip install -r requirements.txt
+.venv\\Scripts\\python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+```
+
+Then, in your PrepEzy backend terminal, before starting uvicorn:
+
+```bat
+set PREPEZY_AURALIS_ENABLED=1
+set PREPEZY_AURALIS_URL=http://127.0.0.1:8001
+.venv\\Scripts\\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+The Next.js UI will show whether the **actual** local service is reachable. Use the Interview Practice section to start, answer, finish and view the real Auralis scripted report. The Adaptive Coding Lab independently grades restricted Python submissions through Auralis and updates the Python evidence summary.
+
+The integration is deliberately local-only: the adapter blocks remote/HTTPS upstream URLs, follows no redirects, sends no user documents, and exposes only reduced session details. Demo owner tokens are deterministic synthetic namespace labels, *not credentials*. No cross-device, production or real-student privacy guarantees exist.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.
@@ -55,7 +82,7 @@ The new local API routes are:
 - `GET /api/demo/learners/{learner_id}/evidence`: recorded server-graded outcomes.
 - `GET /api/demo/learners/{learner_id}/next-question`: chooses a question for the currently prioritized skill.
 
-No Auralis, Cracked skill execution, Serviette, or JobSearch runtime integration is claimed.
+Auralis is **optionally** connected to the actual local scripted-demo service when enabled and running. Cracked execution, Serviette and JobSearch are not yet integrated.
 
 ## Production warning
 
