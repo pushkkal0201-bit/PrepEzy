@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PatternCoach from "./PatternCoach";
+import LocalLab from "./LocalLab";
 
 const API = process.env.NEXT_PUBLIC_PREPEZY_API_URL || "http://localhost:8000";
 type Question = { id: string; skill: string; prompt: string; options: Record<string, string> };
@@ -185,8 +186,10 @@ export default function Home() {
   }
   const top = snapshot?.competencies.find(c => c.id === snapshot.recommendation.skill);
   return <main className="shell">
-    <header className="top"><div className="brand">Prep<span>Ezy</span></div><span className="tag">Adaptive foundation · synthetic demo</span></header>
-    <section className="hero"><p className="eyebrow">LEARN · PRACTICE · PROVE</p><h1>A different preparation journey for every student.</h1><p>These practice questions are graded by the API. Recommendations change when evidence changes—no AI-generated scores and no claims about hiring readiness.</p></section>
+    <header className="top"><div className="brand">Prep<span>Ezy</span></div><span className="tag">Local-first practice · adaptive foundation</span></header>
+    <section className="hero"><p className="eyebrow">LEARN · PRACTICE · PROVE</p><h1>Practice against evidence, not guesses.</h1><p>Build a real local learning record with executed SQL challenges and independently checked CS questions. Below that, experiment with the optional Auralis and Cracked modules as they are integrated.</p></section>
+    <LocalLab />
+    <div className="prototype-note"><h2>Experimental adaptive modules</h2><p>These sections still use synthetic learner profiles and optional local integrations. They are not part of the single-device learning record above.</p></div>
     <section className="layout">
       <div className="panel"><h2>1. Choose a demo learner</h2><label htmlFor="learner">Role-specific learning goals</label><select id="learner" value={learner} onChange={e => { setLearner(e.target.value); setFeedback(""); }}><option value="demo-backend">Demo A · Backend Engineer</option><option value="demo-ml">Demo B · ML Engineer</option></select>
         <h2>2. Complete a knowledge check</h2><button className="secondary-button" onClick={practiceNext}>Choose PrepLoop's next question</button><label htmlFor="question">Choose a question</label><select id="question" value={questionId} onChange={e => { setQuestionId(e.target.value); setChoice(""); setFeedback(""); }}>{questions.map(q => <option key={q.id} value={q.id}>{q.skill.toUpperCase()} · {q.id}</option>)}</select><p className="prompt">{current?.prompt || "Loading questions..."}</p><fieldset><legend>Answer</legend>{current && Object.entries(current.options).map(([id, name]) => <label className="option" key={id}><input type="radio" name="answer" value={id} checked={choice === id} onChange={() => setChoice(id)}/>{name}</label>)}</fieldset><button disabled={!choice || busy} onClick={submit}>{busy ? "Checking..." : "Submit answer"}</button>{feedback && <p className="feedback" role="status">{feedback}</p>}{error && <p className="error" role="alert">{error}. Start the local API on port 8000.</p>}</div>
@@ -249,6 +252,6 @@ export default function Home() {
         </div>}
         {codeError && <p className="error" role="alert">{codeError}</p>}
       </div>}
-    </section><footer>Local synthetic prototype only · No real accounts, real student data or public deployment. Auralis scripted interviews are unscored; its restricted coding tests are independently graded.</footer>
+    </section><footer>Real SQLite assessments and local study preferences are persisted on this device. Other modules are marked experimental or scripted. No authentication or public deployment.</footer>
   </main>;
 }

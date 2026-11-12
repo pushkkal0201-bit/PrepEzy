@@ -38,3 +38,9 @@ Reusing MIT-licensed sources does not remove attribution requirements. Check Pat
 ## Stage 4 status — Cracked
 
 \`skills/interview/pattern-coach/SKILL.md\` has been adapted to a **functional local-only guided reasoning workflow** with four PrepEzy-authored curricula and deterministic grading. \`platform/apps/web/app/PatternCoach.tsx\` provides the UI. Distinct-pattern transfer checks contribute limited DSA concept evidence to SkillGraph. The full Cracked skill pack remains intact; OA simulator, company-intel sources, executable SQL viva and other agent skills are not yet integrated as web workflows.
+
+## Stage 5: Local-first real assessment (implemented, authentication deferred)
+
+**New:** \`app/local_lab.py\` and \`LocalLab.tsx\` provide a genuine persistent study workspace with 5 SQL programs executed against two fixture datasets and 12 checked CS fundamentals questions. Role preferences and verified assessment outcomes drive an original local PrepLoop roadmap. The SQL judge allows only constrained read-only SQLite queries, not arbitrary OS code or untrusted student Python. It does not use the Cracked agent runtime; this is a real backend functionality inspired by Cracked's executable SQL Core Viva requirement. Earlier synthetic Auralis and Cracked modules remain preserved and explicitly marked experimental.
+
+**Remaining gaps:** Full dynamic Core Viva, system-design interviews, actual sandboxed DSA compiler/judge, real RAG with source citations, job connectors, application lifecycle, Skill Studio, Adaptive Build Lab, shared evidence across engines, and production identity/privacy.
