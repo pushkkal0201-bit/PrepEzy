@@ -64,3 +64,9 @@ Resetting the workspace deletes local SQL, core, pattern attempts/hints and rest
 Timed sessions are enforced by backend timestamps. Outputs are compared against deterministic private test inputs, and submitted code itself is not persisted (only SHA-256 and results). Source evidence is `prepezy-docker-isolated-code-runner`; a separate eighth skill dimension prevents coding performance being conflated with theoretical DSA pattern checks.
 
 **This is an educational local judge, not a certified multi-tenant untrusted-code service.** Do not publicly expose its API or Docker daemon. Use immutable image digests, stronger isolation and independent security review before any public deployment.
+
+## Stage 8: Serviette ingestion and retrieval boundary
+
+NotesFolder writes safe Markdown/plain-text documents to PREPEZY_KNOWLEDGE_DIR, watched separately by an external Serviette indexer. ServietteGateway calls real versioned REST endpoints under /api/v1 (health, stats, documents, retrieve, rag); the upstream URL must resolve to local loopback. If upstream /rag returns 501, the gateway retrieves real passages instead and does not invent generated text. Metadata and citations come exclusively from indexed retrieval results. Saving a note and indexing it are separate asynchronous operations. The PrepLoop knowledge suggestion follows the verified local SkillGraph without changing skill evidence.
+
+Pathway license and model credentials stay in the separate Serviette runtime. This is a trusted single-device prototype, not secure multi-tenant RAG.

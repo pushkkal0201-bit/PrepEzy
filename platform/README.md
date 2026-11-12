@@ -164,6 +164,38 @@ A new **eighth SkillGraph dimension** called *Executed coding problems* uses onl
 
 **Safety and limitations:** This is for a **trusted, single-user local machine only**, not a public or adversarially hardened code-execution service. Docker isolation provides defense in depth but is not a guarantee of complete security. Never expose an unauthenticated judge to the internet. Neither the full Cracked OA feature set nor untrusted public contest submissions are production-ready. Java/Python/JavaScript judge tests run in a separate, opt-in Docker integration CI job.
 
+## Stage 8 — Serviette-powered Knowledge Hub
+
+This stage integrates Serviette (https://github.com/pathwaycom/serviette) via its **real REST API**. Serviette is MIT-licensed (© 2026 Sergey Kulik); the underlying Pathway runtime additionally requires a **free Pathway license key**. Serviette runs as an independent local service and is not bundled into PrepEzy.
+
+Working modules when Serviette is running:
+- Save, open, edit and delete text/Markdown notes in the watched folder with filename validation and a 50 KB document-size limit.
+- Report SAVED notes separately from documents actually indexed by Serviette.
+- Ask questions via POST /api/v1/retrieve and display actual retrieved source passages, metadata, scores and file citations.
+- Optionally call POST /api/v1/rag when Serviette has an answer-generating LLM configured. If upstream returns 501, show real retrieved passages instead, *without claiming a generated answer*.
+- Show real /api/v1/health, /api/v1/stats and /api/v1/documents status.
+- Use a suggested search topic from the current PrepLoop SkillGraph, clearly labeled as a suggestion rather than a search result.
+
+### Running Serviette from Windows with WSL2
+
+1. Create D:\Projects\PrepEzy-Knowledge in Windows. In WSL2 Ubuntu this appears as /mnt/d/Projects/PrepEzy-Knowledge.
+2. In WSL2 Ubuntu, create a separate Python 3.12 venv and install Serviette, for example pip install "serviette[local]" --extra-index-url https://download.pytorch.org/whl/cpu. This may download substantial local embedding models and libraries. Consult the upstream Serviette README for supported model/provider alternatives and more precise prerequisites.
+3. Obtain a free Pathway key from https://pathway.com/framework/get-license and export PATHWAY_LICENSE_KEY in the WSL2 terminal. Never commit it to GitHub.
+4. Run serviette wizard, configure the filesystem source as /mnt/d/Projects/PrepEzy-Knowledge, choose a local embedder and DuckDB (or another supported backend), and save a config file OUTSIDE PrepEzy. Start serviette up --config config.yaml. Default API port is 8989.
+5. In the Windows CMD terminal where you run the PrepEzy API set:
+    set PREPEZY_KNOWLEDGE_DIR=D:\Projects\PrepEzy-Knowledge
+    set PREPEZY_SERVIETTE_ENABLED=1
+    set PREPEZY_SERVIETTE_URL=http://127.0.0.1:8989
+6. Restart the PrepEzy backend on 127.0.0.1:8000 and Next.js on localhost:3000, open Knowledge Hub, recheck Serviette, save a note, and refresh the indexed catalog. Windows-to-WSL2 localhost forwarding must be enabled; do not expose the unauthenticated service on public interfaces.
+
+The REST integration is opt-in; if Serviette is missing, the UI reports unavailability instead of simulating retrieval. Retrieved snippets may be sent to an external LLM provider if configured in Serviette: keep sensitive student data out of this local no-auth prototype.
+
+### Verification and limitations
+
+Stage 8 API tests validate the current upstream Serviette HTTP schema with a mocked transport, verifying note persistence, provenance, genuine fallback behavior and error states. They do NOT claim an actual Pathway indexer with live documents ran inside CI, because that requires a separate dependency-heavy installation and Pathway license. A full live-service validation should be performed after you configure Serviette.
+
+No multi-user document permissions, robust prompt-injection security or confidential student-data workflows are included; authentication remains deferred as requested.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.

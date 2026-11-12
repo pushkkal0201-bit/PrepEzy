@@ -56,3 +56,7 @@ A single-device pipeline now aggregates **real** SQL execution, checked Core CS 
 **Implemented:** A Docker-only runner for Java, Python and JavaScript, deterministic hidden tests for four original algorithmic problems, 15–60 minute timed sessions, practice mode, persistent result hashes and submission history, Next.js editor, bounded execution, compiler/runtime/timeout verdicts and unified SkillGraph evidence. The actual Docker runner has an opt-in GitHub CI integration job.
 
 **Not claimed:** Full Cracked OA and interview agent parity, multi-tenant secure execution, public hosting, user authentication, live contests, plagiarism detection, deep project compilation or performance-grade algorithm benchmarking. Do not conflate hosted Docker security with a hardened sandbox.
+
+## Stage 8 — Serviette Knowledge Hub
+
+Implemented in the feature branch: actual Serviette REST v1 integration, local watched-folder Markdown/text note management, source-cited retrieval, optional upstream generated answers, explicit retrieval-only fallback, index catalog and status, SkillGraph-driven query suggestions, and HTTP contract tests. Real indexer readiness depends on separately running Serviette with a Pathway license and appropriate embedder. An upstream live indexer test is not part of this CI stage. No public user isolation, PDF uploads through the PrepEzy editor, or confidential-document tenancy is claimed.

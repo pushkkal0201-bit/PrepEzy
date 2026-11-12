@@ -17,6 +17,7 @@ from .cracked import public_catalog
 from .local_lab import LocalLab
 from .unified import UnifiedEvidence, LOCAL_NAMESPACE
 from .coding_arena import JudgeUnavailable, public_problems
+from .knowledge import NotesFolder, ServietteGateway, ServietteUnavailable, suggest_from_skillgraph
 
 
 class LocalProfileUpdate(BaseModel):
@@ -33,6 +34,17 @@ class SqlAttempt(BaseModel):
 class VivaAttempt(BaseModel):
     question_id: str = Field(min_length=3, max_length=48)
     choice_id: str = Field(min_length=1, max_length=4)
+
+
+class KnowledgeNoteRequest(BaseModel):
+    filename: str = Field(min_length=4, max_length=70)
+    content: str = Field(min_length=1, max_length=50000)
+
+
+class KnowledgeQueryRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=800)
+    mode: Literal["retrieve", "answer"] = "retrieve"
+    k: int = Field(default=5, ge=1, le=8)
 
 
 class ArenaSessionRequest(BaseModel):
@@ -68,7 +80,7 @@ class Attempt(BaseModel):
     choice_id: str
 
 
-def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None, local_lab: LocalLab | None = None) -> FastAPI:
+def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient | None = None, local_lab: LocalLab | None = None, knowledge_client: ServietteGateway | None = None, notes_folder: NotesFolder | None = None) -> FastAPI:
     if os.getenv("PREPEZY_ENV", "development") != "development":
         raise RuntimeError("This synthetic demo API is not production-ready")
     instance = engine or DemoEngine(os.getenv("PREPEZY_DEMO_DB", ":memory:"))
@@ -76,12 +88,19 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.7.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.8.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
     local = local_lab if local_lab is not None else LocalLab(
         ":memory:" if engine is not None else os.getenv("PREPEZY_LOCAL_DB", "prepezy_local.sqlite")
     )
     unified = UnifiedEvidence(local)
+    knowledge = knowledge_client if knowledge_client is not None else ServietteGateway(
+        url=os.getenv("PREPEZY_SERVIETTE_URL", "http://127.0.0.1:8989"),
+        enabled=os.getenv("PREPEZY_SERVIETTE_ENABLED", "0") == "1",
+    )
+    notes = notes_folder if notes_folder is not None else NotesFolder(
+        os.getenv("PREPEZY_KNOWLEDGE_DIR", "prepezy-knowledge")
+    )
 
     @app.middleware("http")
     async def local_network_gate(request: Request, call_next):
@@ -145,6 +164,66 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
             raise HTTPException(404, str(error)) from error
 
     # One local device is one workspace. No client-submitted evidence scores.
+    @app.get("/api/local/knowledge/status")
+    async def knowledge_status():
+        upstream = await knowledge.status()
+        return {"upstream": upstream, "saved_notes": len(notes.list()),
+                "folder": str(notes.path),
+                "note": "A saved file is not proof that Serviette indexed it."}
+
+    @app.get("/api/local/knowledge/notes")
+    def knowledge_notes():
+        return {"notes": notes.list(),
+                "notice": "Saved local notes, not necessarily Serviette-indexed documents."}
+
+    @app.post("/api/local/knowledge/notes")
+    def save_knowledge_note(body: KnowledgeNoteRequest):
+        try:
+            return notes.put(body.filename, body.content)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/knowledge/notes/{filename}")
+    def read_knowledge_note(filename: str):
+        try:
+            return {"filename": filename, "content": notes.read(filename)}
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.delete("/api/local/knowledge/notes/{filename}")
+    def delete_knowledge_note(filename: str):
+        try:
+            return notes.delete(filename)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.get("/api/local/knowledge/documents")
+    async def indexed_knowledge_documents(q: str = Query(default="", max_length=120),
+                                           limit: int = Query(default=50, ge=1, le=100)):
+        try:
+            return await knowledge.documents(q, limit)
+        except (ServietteUnavailable, ValueError) as error:
+            raise HTTPException(503, str(error)) from error
+
+    @app.get("/api/local/knowledge/recommendation")
+    def knowledge_recommendation():
+        return suggest_from_skillgraph(unified.skillgraph())
+
+    @app.post("/api/local/knowledge/query")
+    async def query_knowledge(body: KnowledgeQueryRequest):
+        try:
+            answer = await knowledge.retrieve(body.question, body.k,
+                                              body.mode == "answer")
+            return {**answer,
+                    "student_context": {
+                        "target_role": local.profile()["target_role"],
+                        "personalization": "Question explicitly chosen by learner; recommendations remain separate from retrieval."
+                    }}
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        except ServietteUnavailable as error:
+            raise HTTPException(503, str(error)) from error
+
     @app.get("/api/local/arena/problems")
     def arena_problems():
         return public_problems()
