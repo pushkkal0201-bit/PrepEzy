@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PatternCoach from "./PatternCoach";
+import CodingArena from "./CodingArena";
 
 const API = process.env.NEXT_PUBLIC_PREPEZY_API_URL || "http://localhost:8000";
 
@@ -93,7 +94,7 @@ export default function UnifiedProgress({ refresh, onEvidence }: { refresh: numb
     <section className="panel unified-graph-panel">
       <p className="eyebrow">PREPEZY SKILLGRAPH · ONE LOCAL EVIDENCE PIPELINE</p>
       <h3>One connected view of your real assessments</h3>
-      <p className="sub">SQL executions, checked Core CS answers, guided DSA transfer results and restricted Auralis coding tests are tracked separately with traceable sources. This is not a hiring score.</p>
+      <p className="sub">SQL executions, checked Core CS answers, guided DSA transfer results, Docker-executed coding and restricted Auralis tests are tracked separately with traceable sources. This is not a hiring score.</p>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="unified-evidence-counts">
         {graph && Object.entries(graph.sources).map(([source, count]) =>
@@ -122,6 +123,7 @@ export default function UnifiedProgress({ refresh, onEvidence }: { refresh: numb
       <p className="fineprint">{graph?.interpretation}</p>
     </section>
     <PatternCoach learner="local" local onEvidence={onEvidence}/>
+    <CodingArena onEvidence={onEvidence}/>
     <section className="panel unified-auralis">
       <p className="eyebrow">AURALIS · REAL RESTRICTED CODE CHECKS</p>
       <h3>Python practice with executed test cases</h3>

@@ -81,3 +81,26 @@ jobs:
       - name: Show Auralis logs if failed
         if: failure()
         run: cat /tmp/auralis-integration.log || true
+
+  coding-arena-docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: platform/services/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install API test dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Pull isolated test language images
+        run: |
+          docker pull python:3.11-alpine
+          docker pull node:22-alpine
+          docker pull eclipse-temurin:21-jdk-alpine
+      - name: Execute real programs inside Docker containers
+        env:
+          PREPEZY_RUN_DOCKER_TESTS: '1'
+        run: python -m pytest -q tests/test_coding_arena_docker.py

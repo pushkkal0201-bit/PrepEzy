@@ -135,6 +135,35 @@ Evidence sources are deliberately **not** averaged into a fake global proficienc
 - Auralis code evaluation is real only when the separate local Auralis service is running and advertises its restricted runner. Scripted interviews remain separate and unscored.
 - Serviette RAG and JobSearch career services, the Adaptive Build Lab, Skill Studio, and development-only tooling are future milestones.
 
+## Stage 7 — Real Docker-isolated Java, Python and JavaScript Coding Arena
+
+PrepEzy now includes an **actual multi-language coding judge**, not an LLM score or visual mock-up. Users can type complete programs, start practice or timed sessions (15, 30, 45, or 60 minutes), run tests and save verified execution outcomes to the same local SkillGraph and Evidence Passport.
+
+**Requirements:** Docker Desktop running in **Linux-container mode** (Windows users should enable the WSL2 backend). In CMD or PowerShell, pull the three images **before** using the judge:
+
+```bat
+docker pull python:3.11-alpine
+docker pull node:22-alpine
+docker pull eclipse-temurin:21-jdk-alpine
+docker image ls
+```
+
+These images are pinned by major/minor tag for local development; pin immutable digests for production. Docker images are not silently downloaded by the app.
+
+**Real execution:** Every submitted Java, Python or JavaScript source file is mounted read-only into a newly created, unprivileged container with network disabled, read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, memory/PID/CPU limits, bounded temporary filesystem, bounded output, and an enforced wall-time budget. No host execution fallback exists. Java code must use `public class Main`, read standard input and print standard output. The backend checks outputs against private predefined tests, records the verdict and a SHA-256 hash of the submitted source (not the source itself). Four original coding problems are included; expand the bank in later stages.
+
+**Local APIs** (no login; bind to `127.0.0.1`):
+- `GET /api/local/arena/problems` — public problem metadata, examples and starter code (no hidden cases).
+- `GET /api/local/arena/status` — installed-image readiness and active session.
+- `POST /api/local/arena/sessions` — start timed or practice session.
+- `POST /api/local/arena/sessions/{session_id}/finish` — finish current session.
+- `POST /api/local/arena/submissions` — execute, grade and record a submission.
+- `GET /api/local/arena/evidence` — persisted verdict history.
+
+A new **eighth SkillGraph dimension** called *Executed coding problems* uses only the first submission per distinct task as independent evidence. Graded execution, DSA pattern recognition, core MCQs and restricted Auralis code remain visibly different categories. Answering a pattern-recognition question never proves executable coding competence.
+
+**Safety and limitations:** This is for a **trusted, single-user local machine only**, not a public or adversarially hardened code-execution service. Docker isolation provides defense in depth but is not a guarantee of complete security. Never expose an unauthenticated judge to the internet. Neither the full Cracked OA feature set nor untrusted public contest submissions are production-ready. Java/Python/JavaScript judge tests run in a separate, opt-in Docker integration CI job.
+
 ## Development priorities (authentication intentionally deferred)
 
 This milestone **does not include login, registration, JWT, Supabase or any other account system**. Focus on the adaptive policy, evidence model, skill taxonomy, assessment and event contracts, original learning workflows, and tested integration boundaries. Identity can be added later behind a dedicated interface once the core works; demo IDs must never be treated as real user identity.

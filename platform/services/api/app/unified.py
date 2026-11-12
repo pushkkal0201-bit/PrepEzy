@@ -10,6 +10,7 @@ import sqlite3
 from threading import RLock
 
 from .cracked import PATTERNS, PatternCoach
+from .coding_arena import CodingArena, PROBLEMS
 from .local_lab import LocalLab, ROLES, SQL_TASKS, VIVA
 
 LOCAL_NAMESPACE = "local-device-only"
@@ -21,17 +22,18 @@ SKILL_NAMES = {
     "oop": "Object-oriented programming",
     "dsa": "DSA pattern recognition",
     "python": "Restricted Python practical",
+    "coding": "Executed coding problems",
 }
 AVAILABLE = {"sql": len(SQL_TASKS), "dbms": 3, "os": 3, "cn": 3, "oop": 3,
-             "dsa": len(PATTERNS), "python": 5}
+             "dsa": len(PATTERNS), "python": 5, "coding": len(PROBLEMS)}
 ACTIONS = {"sql": "sql-practice", "dbms": "core-viva", "os": "core-viva",
            "cn": "core-viva", "oop": "core-viva",
-           "dsa": "pattern-coach", "python": "restricted-python"}
+           "dsa": "pattern-coach", "python": "restricted-python", "coding": "coding-arena"}
 ROLE_EXTRA = {
-    "backend": {"dsa": 0.85, "python": 0.45},
-    "data": {"dsa": 0.4, "python": 0.7},
-    "ml": {"dsa": 0.8, "python": 1.0},
-    "fullstack": {"dsa": 0.85, "python": 0.8},
+    "backend": {"dsa": 0.85, "python": 0.45, "coding": 0.95},
+    "data": {"dsa": 0.4, "python": 0.7, "coding": 0.55},
+    "ml": {"dsa": 0.8, "python": 1.0, "coding": 0.85},
+    "fullstack": {"dsa": 0.85, "python": 0.8, "coding": 0.95},
 }
 CHALLENGES = {"sum_numbers", "reverse_text", "palindrome", "range_span", "clamp"}
 
@@ -42,6 +44,7 @@ class UnifiedEvidence:
         self.lock: RLock = lab.lock
         self.db: sqlite3.Connection = lab.db
         self.patterns = PatternCoach(self.db, self.lock)
+        self.arena = CodingArena(self.db, self.lock)
         with self.lock:
             self.db.execute("""CREATE TABLE IF NOT EXISTS local_auralis_code(
                 id INTEGER PRIMARY KEY,
@@ -92,6 +95,7 @@ class UnifiedEvidence:
         base = self.lab.evidence()
         coach = self.patterns.evidence(LOCAL_NAMESPACE)
         code = self.code_evidence()
+        executed = self.arena.evidence()
         events: list[dict] = []
         for record in base["sql"]:
             events.append({
@@ -121,12 +125,25 @@ class UnifiedEvidence:
                 "source": record["source"], "created_at": record["created_at"],
                 "details": {"tests_passed": record["tests_passed"], "tests_total": record["tests_total"]},
             })
+        for record in executed:
+            events.append({
+                "id": "coding:" + str(record["id"]), "skill": "coding",
+                "kind": "docker_code_execution", "assessment_id": record["problem_id"],
+                "correct": record["correct"], "assisted": False,
+                "source": record["source"], "created_at": record["created_at"],
+                "details": {
+                    "language": record["language"],
+                    "verdict": record["verdict"], "tests_passed": record["tests_passed"],
+                    "tests_total": record["tests_total"],
+                    "source_sha256": record["source_sha256"],
+                },
+            })
         events.sort(key=lambda e: (e["created_at"], int(e["id"].split(":")[-1])), reverse=True)
         return {
             "events": events, "event_count": len(events),
             "sources": {
                 "sql": len(base["sql"]), "core_viva": len(base["core"]),
-                "cracked_pattern": len(coach), "auralis_restricted_code": len(code),
+                "cracked_pattern": len(coach), "auralis_restricted_code": len(code), "coding_arena": len(executed),
             },
             "notice": "Only verified local assessment events. No interview scores, hiring predictions or inferred grades.",
         }
@@ -158,7 +175,7 @@ class UnifiedEvidence:
             priority = weights[sid] * (0.65 * unanswered + 0.65 * error + (0.2 if count == 0 else 0))
             skills.append({
                 "id": sid, "name": SKILL_NAMES[sid], "kind": (
-                    "practical_sql" if sid == "sql" else "restricted_execution" if sid == "python"
+                    "practical_sql" if sid == "sql" else "restricted_execution" if sid == "python" else "docker_execution" if sid == "coding"
                     else "pattern_transfer" if sid == "dsa" else "core_knowledge"),
                 "available": AVAILABLE[sid], "distinct_assessments": count,
                 "first_try_correct_unassisted": successes, "coverage": round(count / AVAILABLE[sid], 3),
@@ -175,7 +192,7 @@ class UnifiedEvidence:
         for skill in skills:
             if len(steps) == 4:
                 break
-            minutes = 20 if skill["id"] in ("sql", "python") else 15 if skill["id"] == "dsa" else 10
+            minutes = 20 if skill["id"] in ("sql", "python", "coding") else 15 if skill["id"] == "dsa" else 10
             if minutes > remaining:
                 continue
             steps.append({
@@ -197,7 +214,7 @@ class UnifiedEvidence:
             "event_count": events["event_count"],
             "interpretation": (
                 "Evidence is grouped by assessment type and first attempt. "
-                "No single percentage combines SQL, MCQs, pattern recognition and restricted code execution. "
+                "No single percentage combines SQL, MCQs, pattern recognition and executed code tests. "
                 "Recommendations are a transparent heuristic, not proof of improved learning."
             ),
         }
@@ -208,4 +225,5 @@ class UnifiedEvidence:
             self.db.execute("DELETE FROM cracked_pattern_attempts WHERE learner=?", (LOCAL_NAMESPACE,))
             self.db.execute("DELETE FROM cracked_pattern_hints WHERE learner=?", (LOCAL_NAMESPACE,))
             self.db.execute("DELETE FROM local_auralis_code")
+            self.arena.reset()
             self.db.commit()
