@@ -45,6 +45,14 @@ The demo uses synthetic account IDs that are *not* authentication. Do not expose
 
 ## Stage 4 Cracked adaptation (implemented in this branch)
 
-The existing Cracked \`skills/interview/pattern-coach/SKILL.md\` supplies the Socratic learning specification. PrepEzy implements original static exercises in \`app/cracked.py\`. No untrusted \`SKILL.md\` is executed. \`PatternCoach\` advances through checked stages, records hint requests and stores graded answers in SQLite. Only each pattern's first transfer result supplies one distinct DSA concept-recognition observation; retries cannot inflate independent evidence. This is not equivalent to independently executed algorithm implementations.
+The existing Cracked `skills/interview/pattern-coach/SKILL.md` supplies the Socratic learning specification. PrepEzy implements original static exercises in `app/cracked.py`. No untrusted `SKILL.md` is executed. `PatternCoach` advances through checked stages, records hint requests and stores graded answers in SQLite. Only each pattern's first transfer result supplies one distinct DSA concept-recognition observation; retries cannot inflate independent evidence. This is not equivalent to independently executed algorithm implementations.
 
-The \`PatternCoach\` Next.js component talks to local \`/api/demo/.../cracked\` endpoints. All profiles are synthetic; no remote agent or LLM is called.
+The `PatternCoach` Next.js component talks to local `/api/demo/.../cracked` endpoints. All profiles are synthetic; no remote agent or LLM is called.
+
+## Stage 6: One local verified evidence pipeline
+
+`UnifiedEvidence` (under `platform/services/api/app/unified.py`) reuses the **single** `LocalLab` SQLite connection and its lock. The service instantiates the Cracked-derived `PatternCoach` with the local-only namespace `local-device-only`, preserving historical synthetic demo profiles separately. The local Auralis coding endpoint calls `AuralisClient.grade_code` (with upstream test/source checks) before recording a normalized coding observation. Arbitrary browser-supplied scores are never accepted.
+
+`GET /api/local/skillgraph` returns seven competency dimensions (SQL, DBMS, OS, CN, OOP, DSA concept recognition, restricted Python code) with first independent attempt counts, provenance reference IDs and goal-weighted next activities. These assessment types are **not** collapsed into one readiness score. Recommendations are an interpretable heuristic.
+
+Resetting the workspace deletes local SQL, core, pattern attempts/hints and restricted Python evidence, without touching the old synthetic demo namespaces. The local browser now refreshes unified recommendations after each checked activity. **No authentication was added.**

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import UnifiedProgress from "./UnifiedProgress";
 
 const API = process.env.NEXT_PUBLIC_PREPEZY_API_URL || "http://localhost:8000";
 type Profile = { role: string; target_role: string; language: string; daily_minutes: number };
@@ -45,6 +46,7 @@ export default function LocalLab() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [evidenceRefresh, setEvidenceRefresh] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -65,6 +67,7 @@ export default function LocalLab() {
         body: JSON.stringify({ role, language, daily_minutes: minutes }) });
       setOverview(await request("/api/local/overview"));
       setNotice("Saved preferences for " + p.target_role + ".");
+      setEvidenceRefresh(n => n + 1);
     } catch (e) { setError(String(e)); } finally { setBusy(""); }
   }
 
@@ -74,6 +77,7 @@ export default function LocalLab() {
       const r = await request("/api/local/sql/attempts", { method: "POST", headers: jsonHeaders,
         body: JSON.stringify({ challenge_id: taskId, query: sql }) });
       setSqlGrade(r.result); setOverview(r.overview);
+      setEvidenceRefresh(n => n + 1);
     } catch (e) { setError(String(e)); } finally { setBusy(""); }
   }
 
@@ -83,6 +87,7 @@ export default function LocalLab() {
       const r = await request("/api/local/viva/attempts", { method: "POST", headers: jsonHeaders,
         body: JSON.stringify({ question_id: questionId, choice_id: answer }) });
       setVivaGrade(r.result); setOverview(r.overview); setAnswer("");
+      setEvidenceRefresh(n => n + 1);
     } catch (e) { setError(String(e)); } finally { setBusy(""); }
   }
 
@@ -95,6 +100,7 @@ export default function LocalLab() {
       setOverview(o); setRole(o.profile.role); setLanguage(o.profile.language);
       setMinutes(o.profile.daily_minutes); setSqlGrade(null); setVivaGrade(null);
       setNotice("Local study history was cleared.");
+      setEvidenceRefresh(n => n + 1);
     } catch (e) { setError(String(e)); } finally { setBusy(""); }
   }
 
@@ -193,5 +199,6 @@ export default function LocalLab() {
         <p className="fineprint">The SQL and Viva engines use original assessment content. Test fixtures are fictional; the SQL execution and recorded results are real.</p>
       </section>
     </div>
+    <UnifiedProgress refresh={evidenceRefresh} onEvidence={() => setEvidenceRefresh(n => n + 1)} />
   </section>;
 }

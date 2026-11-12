@@ -27,6 +27,7 @@ type InterviewHistory = { id: string; status: string; answer_count: number }[];
 type Roadmap = { minutes_budget: number; minutes_planned: number; activities: { skill: string; title: string; type: string; minutes: number; why: string }[]; limitations: string };
 
 export default function Home() {
+  const [showLegacy, setShowLegacy] = useState(false);
   const [learner, setLearner] = useState("demo-backend");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -189,6 +190,14 @@ export default function Home() {
     <header className="top"><div className="brand">Prep<span>Ezy</span></div><span className="tag">Local-first practice · adaptive foundation</span></header>
     <section className="hero"><p className="eyebrow">LEARN · PRACTICE · PROVE</p><h1>Practice against evidence, not guesses.</h1><p>Build a real local learning record with executed SQL challenges and independently checked CS questions. Below that, experiment with the optional Auralis and Cracked modules as they are integrated.</p></section>
     <LocalLab />
+    <div className="prototype-note">
+      <h2>Older experimental integrations</h2>
+      <p>Previous synthetic demonstrations are preserved for testing, but they are separate from your real local learning record.</p>
+      <button className="secondary-button" onClick={() => setShowLegacy(v => !v)}>
+        {showLegacy ? "Hide synthetic experiments" : "Show synthetic experiments"}
+      </button>
+    </div>
+    {showLegacy && <>
     <div className="prototype-note"><h2>Experimental adaptive modules</h2><p>These sections still use synthetic learner profiles and optional local integrations. They are not part of the single-device learning record above.</p></div>
     <section className="layout">
       <div className="panel"><h2>1. Choose a demo learner</h2><label htmlFor="learner">Role-specific learning goals</label><select id="learner" value={learner} onChange={e => { setLearner(e.target.value); setFeedback(""); }}><option value="demo-backend">Demo A · Backend Engineer</option><option value="demo-ml">Demo B · ML Engineer</option></select>
@@ -252,6 +261,8 @@ export default function Home() {
         </div>}
         {codeError && <p className="error" role="alert">{codeError}</p>}
       </div>}
-    </section><footer>Real SQLite assessments and local study preferences are persisted on this device. Other modules are marked experimental or scripted. No authentication or public deployment.</footer>
+    </section>
+    </>}
+    <footer>Local verified assessments and preferences are persisted on this device. No public deployment or multi-user authentication.</footer>
   </main>;
 }

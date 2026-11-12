@@ -15,6 +15,7 @@ from .core import DemoEngine
 from .auralis import AuralisClient, AuralisGatewayError, public_session
 from .cracked import public_catalog
 from .local_lab import LocalLab
+from .unified import UnifiedEvidence, LOCAL_NAMESPACE
 
 
 class LocalProfileUpdate(BaseModel):
@@ -62,11 +63,12 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
     auralis = auralis_client
     if auralis is None and os.getenv("PREPEZY_AURALIS_ENABLED") == "1":
         auralis = AuralisClient(os.getenv("PREPEZY_AURALIS_URL", "http://127.0.0.1:8001"))
-    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.5.0")
+    app = FastAPI(title="PrepEzy Adaptive Foundation", version="0.6.0")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
     local = local_lab if local_lab is not None else LocalLab(
         ":memory:" if engine is not None else os.getenv("PREPEZY_LOCAL_DB", "prepezy_local.sqlite")
     )
+    unified = UnifiedEvidence(local)
 
     @app.middleware("http")
     async def local_network_gate(request: Request, call_next):
@@ -129,6 +131,65 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
         except ValueError as error:
             raise HTTPException(404, str(error)) from error
 
+    # One local device is one workspace. No client-submitted evidence scores.
+    @app.get("/api/local/skillgraph")
+    def local_skillgraph():
+        return unified.skillgraph()
+
+    @app.get("/api/local/unified-evidence")
+    def local_unified_evidence():
+        return unified.evidence()
+
+    @app.get("/api/local/cracked/patterns")
+    def local_patterns():
+        return public_catalog()
+
+    @app.get("/api/local/cracked/patterns/{pattern_id}")
+    def local_pattern_state(pattern_id: str):
+        try:
+            return unified.patterns.state(LOCAL_NAMESPACE, pattern_id)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from error
+
+    @app.post("/api/local/cracked/patterns/{pattern_id}/hint")
+    def local_pattern_hint(pattern_id: str):
+        try:
+            return unified.patterns.hint(LOCAL_NAMESPACE, pattern_id)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/local/cracked/patterns/{pattern_id}/answers")
+    def local_pattern_answer(pattern_id: str, body: PatternAnswer):
+        try:
+            outcome = unified.patterns.submit(LOCAL_NAMESPACE, pattern_id, body.step_id, body.choice_id)
+            return {"result": outcome, "skillgraph": unified.skillgraph()}
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/auralis/challenges")
+    async def local_auralis_challenges():
+        try:
+            # The upstream local instance uses a fixed *non-secret* namespace
+            # only to separate its internal restricted coding records.
+            return await local_auralis().coding_catalog("demo-backend")
+        except AuralisGatewayError as error:
+            raise HTTPException(error.status, str(error)) from error
+
+    @app.post("/api/local/auralis/code")
+    async def local_auralis_coding(body: CodingAttempt):
+        try:
+            result = await local_auralis().grade_code("demo-backend", body.challenge_id, body.code)
+            unified.record_auralis(result)
+            return {"result": result, "skillgraph": unified.skillgraph()}
+        except AuralisGatewayError as error:
+            raise HTTPException(error.status, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.get("/api/local/auralis/evidence")
+    def local_auralis_evidence():
+        return {"results": unified.code_evidence()}
+
     # A real local-first study workspace, with no sign-in and no synthetic user IDs.
     # This API is for one trusted local device; never expose it on a public interface.
     @app.get("/api/local/profile")
@@ -176,7 +237,9 @@ def create_app(engine: DemoEngine | None = None, auralis_client: AuralisClient |
 
     @app.delete("/api/local/data")
     def local_delete_data():
-        return local.reset()
+        local.reset()
+        unified.clear()
+        return {"cleared": True, "sources": ["sql", "core_viva", "cracked_pattern", "auralis_restricted_code"]}
 
     def local_auralis() -> AuralisClient:
         if auralis is None:
