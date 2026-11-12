@@ -120,14 +120,15 @@ for (const p of listed) if (!skills.some((s) => s.rel === p)) err(`plugin.json: 
 const market = JSON.parse(readFileSync(join(root, ".claude-plugin", "marketplace.json"), "utf8"));
 if (!market.plugins?.some((p) => p.name === plugin.name)) err(`marketplace.json: no plugin entry named "${plugin.name}"`);
 
-// 4. README documents every user-facing skill
-const readmePath = join(root, "README.md");
-if (!existsSync(readmePath)) err("README.md is missing");
+// 4. The preserved upstream README documents every user-facing Cracked skill.
+// PrepEzy owns the root README as the unified application entry point.
+const readmePath = join(root, "UPSTREAM_CRACKED_README.md");
+if (!existsSync(readmePath)) err("UPSTREAM_CRACKED_README.md is missing");
 else {
   const readme = readFileSync(readmePath, "utf8");
   for (const s of skills) {
     if (INTERNAL.has(s.name)) continue;
-    if (!readme.includes(`/${s.name}`)) err(`README.md: does not mention /${s.name}`);
+    if (!readme.includes(`/${s.name}`)) err(`UPSTREAM_CRACKED_README.md: does not mention /${s.name}`);
   }
 }
 
