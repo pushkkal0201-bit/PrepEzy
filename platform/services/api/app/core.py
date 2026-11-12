@@ -55,6 +55,8 @@ class DemoEngine:
                )"""
         )
         self.db.commit()
+        from .cracked import PatternCoach
+        self.coach = PatternCoach(self.db, self._lock)
 
     @staticmethod
     def validate_learner(learner: str) -> None:
@@ -177,7 +179,11 @@ class DemoEngine:
     def roadmap(self, learner: str, minutes: int = 45) -> dict:
         """Build a transparent, goal-specific roadmap from recorded quiz evidence."""
         from .learning import make_roadmap
-        return make_roadmap(self.snapshot(learner), minutes=minutes)
+        plan = make_roadmap(self.snapshot(learner), minutes=minutes)
+        for activity in plan["activities"]:
+            if activity["skill"] == "dsa":
+                activity["suggested_pattern"] = self.coach.recommendation(learner)
+        return plan
 
     def next_question(self, learner: str) -> dict:
         """Prefer not-yet-attempted questions for the highest-priority roadmap skill."""
@@ -224,6 +230,12 @@ class DemoEngine:
         for all_passed in latest_code.values():
             stats["python"]["attempts"] += 1
             stats["python"]["correct"] += int(all_passed)
+        # Each DISTINCT Cracked-inspired pattern's FIRST transfer check can
+        # contribute one DSA concept-recognition observation. Assisted or
+        # initially failed checks never become unassisted proficiency evidence.
+        for check in self.coach.independent_transfer_grades(learner):
+            stats["dsa"]["attempts"] += 1
+            stats["dsa"]["correct"] += int(check["correct"])
         weights = LEARNERS[learner]["weights"]
         competencies = []
         for skill, item in stats.items():
@@ -235,4 +247,4 @@ class DemoEngine:
         competencies.sort(key=lambda c: (-c["priority"], c["id"]))
         top = competencies[0]
         reason = ("No assessment recorded yet; establish a baseline for this role." if top["attempts"] == 0 else "Recorded local assessment evidence suggests this topic needs further practice.")
-        return {"id": learner, "synthetic_demo": True, "target_role": LEARNERS[learner]["role"], "total_attempts": len(rows), "distinct_questions": len(latest_by_question), "interview_history": self.interview_history(learner), "auralis_code_history": self.code_history(learner), "competencies": competencies, "recommendation": {"skill": top["id"], "action": "baseline-assessment" if top["attempts"] == 0 else "guided-practice", "reason": reason}, "limitations": "Practice-only estimate from a small quiz; not a certification or hiring prediction."}
+        return {"id": learner, "synthetic_demo": True, "target_role": LEARNERS[learner]["role"], "total_attempts": len(rows), "distinct_questions": len(latest_by_question), "interview_history": self.interview_history(learner), "auralis_code_history": self.code_history(learner), "cracked_pattern_evidence": self.coach.evidence(learner), "cracked_recommendation": self.coach.recommendation(learner), "competencies": competencies, "recommendation": {"skill": top["id"], "action": "baseline-assessment" if top["attempts"] == 0 else "guided-practice", "reason": reason}, "limitations": "Practice-only estimate from a small quiz; not a certification or hiring prediction."}
